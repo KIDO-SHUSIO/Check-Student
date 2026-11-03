@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5faff">
+  <title>เข้าสู่ระบบ | สแกนเช็คชื่อ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --primary: #347daf;
+      --primary-dark: #28658f;
+      --ink: #263746;
+      --muted: #7d8c99;
+      --line: #dfebf4;
+      --surface: #fff;
+      --page: #f5faff;
+      --red: #b52e2b;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      display: grid;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      place-items: center;
+      background: var(--page);
+      color: var(--ink);
+      font-family: 'Sarabun', sans-serif;
+      font-size: 14px;
+    }
+    button, input { font: inherit; }
+    .login-card {
+      width: min(100%, 370px);
+      padding: 28px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--surface);
+      box-shadow: 0 12px 35px rgba(41, 79, 108, .08);
+    }
+    .eyebrow { margin-bottom: 5px; color: var(--primary); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-align: center; }
+    h1 { margin: 0 0 5px; color: var(--primary); font-size: 23px; text-align: center; }
+    .description { margin: 0 0 20px; color: var(--muted); font-size: 12px; text-align: center; }
+    .field { display: block; margin-bottom: 12px; color: #526b7d; font-size: 11px; }
+    .field input {
+      display: block;
+      width: 100%;
+      min-height: 42px;
+      margin-top: 5px;
+      padding: 9px 11px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #fff;
+      color: var(--ink);
+      font-size: 14px;
+    }
+    .field input:focus { outline: 2px solid rgba(52,125,175,.15); border-color: #83b9de; }
+    .submit {
+      width: 100%;
+      min-height: 40px;
+      border: 0;
+      border-radius: 9px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .submit:hover:not(:disabled) { background: var(--primary-dark); }
+    .submit:disabled { cursor: wait; opacity: .7; }
+    .error { min-height: 19px; margin: 10px 0 0; color: var(--red); font-size: 11px; text-align: center; }
+  </style>
+</head>
+<body>
+  <main class="login-card">
+    <div class="eyebrow">PPW / QUEUE 1.0.0</div>
+    <h1>เข้าสู่ระบบ</h1>
+    <p class="description">เข้าสู่ระบบตามสิทธิ์ผู้ใช้งาน</p>
+    <form id="loginForm">
+      <label class="field" for="teacherIdInput">
+        เลขประจำตัวครูหรือรหัสเข้าใช้งาน
+        <input id="teacherIdInput" name="accessCode" type="text" inputmode="numeric" autocomplete="username" maxlength="64" required autofocus>
+      </label>
+      <button class="submit" id="loginSubmit" type="submit">ยืนยัน</button>
+      <p class="error" id="loginError" role="alert" aria-live="polite"></p>
+    </form>
+  </main>
+
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwlHFOZ71s3oCZNHi1ei704q4G8AtQY9u3bLLdbkqoSWWjFhqmvMlSMuroCE3rveQfGbg/exec";
+    const AUTH_TOKEN_KEY = "attendanceSessionToken";
+    const AUTH_ROLE_KEY = "attendanceSessionRole";
+    const form = document.getElementById("loginForm");
+    const teacherIdInput = document.getElementById("teacherIdInput");
+    const loginSubmit = document.getElementById("loginSubmit");
+    const loginError = document.getElementById("loginError");
+
+    if (new URLSearchParams(window.location.search).has("expired")) {
+      loginError.textContent = "เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง";
+    }
+
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      loginError.textContent = "";
+      loginSubmit.disabled = true;
+
+      try {
+        const response = await fetch(SCRIPT_URL, {
+          method: "POST",
+          body: new URLSearchParams({ action: "login", teacherId: teacherIdInput.value }),
+          redirect: "follow"
+        });
+        if (!response.ok) throw new Error(`เซิร์ฟเวอร์ตอบกลับ ${response.status}`);
+        const data = await response.json();
+        if (!data.success) {
+          loginError.textContent = data.message || "ไม่พบเลขประจำตัวครูในระบบ";
+          teacherIdInput.value = "";
+          teacherIdInput.focus();
+          return;
+        }
+        if (typeof data.token !== "string" || !data.token) {
+          throw new Error("เซิร์ฟเวอร์ไม่ได้ส่ง token สำหรับเข้าสู่ระบบ");
+        }
+
+        const destinations = {
+          scanner: "index.html",
+          teacher: "teacher.html",
+          admin: "upload.html"
+        };
+        const destination = destinations[data.role];
+        if (!destination || data.destination !== destination) {
+          try {
+            await fetch(SCRIPT_URL, {
+              method: "POST",
+              body: new URLSearchParams({ action: "logout", token: data.token }),
+              redirect: "follow"
+            });
+          } catch (logoutError) {
+            console.error("Unable to revoke a session from an outdated backend:", logoutError);
+          }
+          throw new Error("ระบบหลังบ้านยังเป็นเวอร์ชันเก่า กรุณาวาง Code.gs เวอร์ชันล่าสุดใน Apps Script แล้ว Deploy > Manage deployments > Edit > New version > Deploy");
+        }
+
+        try {
+          window.sessionStorage.setItem(AUTH_TOKEN_KEY, data.token);
+          window.sessionStorage.setItem(AUTH_ROLE_KEY, data.role);
+        } catch (error) {
+          window.sessionStorage.removeItem(AUTH_TOKEN_KEY);
+          window.sessionStorage.removeItem(AUTH_ROLE_KEY);
+          try {
+            await fetch(SCRIPT_URL, {
+              method: "POST",
+              body: new URLSearchParams({ action: "logout", token: data.token }),
+              redirect: "follow"
+            });
+          } catch (logoutError) {
+            console.error("Unable to revoke an unstoreable login session:", logoutError);
+          }
+          throw new Error("เบราว์เซอร์ไม่อนุญาตให้เก็บเซสชัน กรุณาเปิดหน้านี้ผ่านเว็บไซต์หรือ localhost");
+        }
+
+        teacherIdInput.value = "";
+        window.location.replace(destination);
+      } catch (error) {
+        console.error("Login failed:", error);
+        loginError.textContent = error instanceof TypeError
+          ? "เชื่อมต่อ Apps Script ไม่ได้ กรุณาตรวจอินเทอร์เน็ตและการปรับใช้ Web App"
+          : error.message || "เชื่อมต่อระบบเข้าสู่ระบบไม่สำเร็จ";
+        teacherIdInput.value = "";
+        teacherIdInput.focus();
+      } finally {
+        loginSubmit.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

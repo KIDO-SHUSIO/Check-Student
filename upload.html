@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5faff">
+  <title>Upload Display | ระบบเช็คชื่อ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root { color-scheme: light; --primary: #347daf; --primary-dark: #28658f; --ink: #263746; --muted: #7d8c99; --line: #dfebf4; --page: #f5faff; --blue-soft: #edf7ff; --amber: #94620a; --red: #b52e2b; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px 20px; background: var(--page); color: var(--ink); font-family: 'Sarabun', sans-serif; font-size: 14px; }
+    button, input { font: inherit; }
+    .page { width: min(100%, 760px); margin: 0 auto; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+    .eyebrow { color: var(--primary); font-size: 10px; font-weight: 700; letter-spacing: .06em; }
+    h1 { margin: 2px 0 3px; font-size: 25px; }
+    .subtitle { margin: 0; color: var(--muted); font-size: 12px; }
+    .button { min-height: 36px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 9px; background: #fff; color: #526b7d; font-size: 11px; cursor: pointer; }
+    .button:hover:not(:disabled) { border-color: #9dc9e7; color: var(--primary-dark); }
+    .button-primary { border-color: var(--primary); background: var(--primary); color: #fff; }
+    .button-primary:hover:not(:disabled) { background: var(--primary-dark); color: #fff; }
+    .button:disabled { cursor: not-allowed; opacity: .6; }
+    .notice { margin-bottom: 13px; padding: 11px 14px; border: 1px solid #d5e9f7; border-radius: 11px; background: var(--blue-soft); color: #52748c; font-size: 11px; line-height: 1.65; }
+    .card { padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+    .card h2 { margin: 0 0 5px; font-size: 16px; }
+    .card-description { margin: 0 0 15px; color: var(--muted); font-size: 11px; line-height: 1.6; }
+    .form { display: grid; gap: 12px; }
+    .field { display: grid; gap: 5px; color: #526b7d; font-size: 11px; }
+    input { width: 100%; min-height: 39px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font-size: 12px; }
+    input:focus { outline: 2px solid rgba(52,125,175,.15); border-color: #83b9de; }
+    .file-input { padding: 7px; }
+    .hint { margin: -5px 0 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
+    .warning { padding: 10px 12px; border: 1px solid #f0d39a; border-radius: 9px; background: #fff8e9; color: var(--amber); font-size: 11px; line-height: 1.6; }
+    .file-state { min-height: 38px; margin: 0; padding: 9px; border-radius: 9px; background: #f7fafc; color: var(--muted); font-size: 10px; overflow-wrap: anywhere; }
+    .table-wrap { overflow-x: auto; margin-top: 12px; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th, td { padding: 8px; border-bottom: 1px solid #edf3f8; font-size: 10px; white-space: nowrap; }
+    th { color: var(--muted); font-weight: 600; }
+    .empty { padding: 18px 8px; color: var(--muted); text-align: center; white-space: normal; }
+    .status { min-height: 19px; margin: 9px 0 0; color: var(--amber); font-size: 11px; line-height: 1.5; }
+    @media (max-width: 620px) { body { padding: 17px 12px; } .header { flex-direction: column; } .card { padding: 14px; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <div>
+        <div class="eyebrow">PPW / ADMIN UPLOAD</div>
+        <h1>อัปโหลดรายชื่อนักเรียน</h1>
+        <p class="subtitle">เลือกไฟล์และกำหนดชั้น/ห้องเพื่อแทนที่รายชื่อใน Google Sheet</p>
+      </div>
+      <button class="button" id="logoutButton" type="button">ออกจากระบบ</button>
+    </header>
+
+    <div class="notice" id="pageNotice" role="status" aria-live="polite">
+      อัปโหลดได้ทั้ง CSV และ Excel (.xlsx, .xls) Apps Script จะสร้าง QR Code และบันทึกเป็นภาพในคอลัมน์ D โดยไม่เรียกบริการ QR ภายนอก
+    </div>
+
+    <section class="card" aria-label="อัปโหลดรายชื่อนักเรียน">
+      <h2>นำเข้ารายชื่อแยกตามห้อง</h2>
+      <p class="card-description">หากเป็นไฟล์ Excel ที่มีหลายชีต ระบบจะเลือกชีตที่ชื่อห้องตรงกับชั้น/ห้องที่กรอก ชื่อแท็บปลายทางจะแสดงตามห้องที่ระบุ</p>
+      <form class="form" id="uploadForm">
+        <label class="field" for="roomInput">ชั้น / ห้อง
+          <input id="roomInput" name="room" type="text" placeholder="ตัวอย่าง 6/10 หรือ ม.610" maxlength="30" required>
+        </label>
+        <p class="hint" id="sheetNamePreview">ชื่อแท็บชีตหลังอัปโหลด: กรุณาระบุชั้น/ห้อง</p>
+        <label class="field" for="studentFile">ไฟล์รายชื่อนักเรียน (CSV / Excel)
+          <input class="file-input" id="studentFile" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" required>
+        </label>
+        <p class="hint">ลำดับคอลัมน์: A รหัสนักเรียน · B เลขที่ · C ชื่อ-นามสกุล · D QR Code (สร้างใน Apps Script, แถวแรกมีหัวตารางได้)</p>
+        <div class="warning">การอัปโหลดจะแทนที่รายชื่อเดิมของห้องที่เลือกทั้งหมด ชีต Attendance และประวัติการเช็คชื่อจะไม่ถูกลบ</div>
+        <p class="file-state" id="fileState">ยังไม่ได้เลือกไฟล์</p>
+        <button class="button button-primary" id="uploadButton" type="submit">ตรวจสอบและอัปโหลดรายชื่อ</button>
+      </form>
+      <p class="status" id="uploadStatus" role="status" aria-live="polite"></p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>รหัสนักเรียน</th><th>เลขที่</th><th>ชื่อ-นามสกุล</th><th>QR Code</th></tr></thead>
+          <tbody id="previewBody"><tr><td class="empty" colspan="4">ตัวอย่างรายชื่อจะแสดงที่นี่ก่อนอัปโหลด</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwlHFOZ71s3oCZNHi1ei704q4G8AtQY9u3bLLdbkqoSWWjFhqmvMlSMuroCE3rveQfGbg/exec";
+    const AUTH_TOKEN_KEY = "attendanceSessionToken";
+    const AUTH_ROLE_KEY = "attendanceSessionRole";
+    let token = null;
+    try {
+      token = sessionStorage.getItem(AUTH_TOKEN_KEY);
+      if (!token || sessionStorage.getItem(AUTH_ROLE_KEY) !== "admin") location.replace("login.html");
+    } catch (error) {
+      console.error("Unable to read administrator session:", error);
+      location.replace("login.html");
+    }
+
+    let parsedRows = null;
+    let activeUploadId = null;
+    const roomInput = document.getElementById("roomInput");
+    const studentFile = document.getElementById("studentFile");
+    const uploadButton = document.getElementById("uploadButton");
+    const uploadStatus = document.getElementById("uploadStatus");
+    const previewBody = document.getElementById("previewBody");
+
+    roomInput.addEventListener("input", updateSheetNamePreview);
+
+    function normalizeRoom(value) {
+      return String(value || "").replace(/\D/g, "");
+    }
+
+    function getRoomSheetName(value) {
+      const room = String(value || "").trim().replace(/^ม\.\s*/i, "");
+      return `ม.${normalizeRoom(room)}`;
+    }
+
+    function updateSheetNamePreview() {
+      const roomKey = normalizeRoom(roomInput.value);
+      document.getElementById("sheetNamePreview").textContent = roomKey
+        ? `ชื่อแท็บชีตหลังอัปโหลด: ${getRoomSheetName(roomInput.value)}`
+        : "ชื่อแท็บชีตหลังอัปโหลด: กรุณาระบุชั้น/ห้อง";
+    }
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [];
+      let value = "";
+      let quoted = false;
+      const input = text.replace(/^\uFEFF/, "");
+      for (let index = 0; index < input.length; index += 1) {
+        const char = input[index];
+        if (quoted) {
+          if (char === '"' && input[index + 1] === '"') {
+            value += '"';
+            index += 1;
+          } else if (char === '"') {
+            quoted = false;
+          } else {
+            value += char;
+          }
+        } else if (char === '"' && value === "") {
+          quoted = true;
+        } else if (char === ",") {
+          row.push(value.trim());
+          value = "";
+        } else if (char === "\n" || char === "\r") {
+          if (char === "\r" && input[index + 1] === "\n") index += 1;
+          row.push(value.trim());
+          if (row.some(cell => cell !== "")) rows.push(row);
+          row = [];
+          value = "";
+        } else {
+          value += char;
+        }
+      }
+      if (quoted) throw new Error("ไฟล์ CSV มีเครื่องหมายอัญประกาศไม่ครบ");
+      row.push(value.trim());
+      if (row.some(cell => cell !== "")) rows.push(row);
+      return rows;
+    }
+
+    async function readRosterFile(file, room) {
+      const extension = file.name.split(".").pop().toLowerCase();
+      if (extension === "csv") return parseCsv(await file.text());
+      if (!["xlsx", "xls"].includes(extension)) throw new Error("รองรับเฉพาะไฟล์ CSV หรือ Excel (.xlsx, .xls)");
+      if (!window.XLSX) throw new Error("โหลดตัวอ่านไฟล์ Excel ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่");
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", raw: false });
+      const roomKey = normalizeRoom(room);
+      const matchingSheet = workbook.SheetNames.find(name => normalizeRoom(name) === roomKey);
+      const selectedSheet = matchingSheet || (workbook.SheetNames.length === 1 ? workbook.SheetNames[0] : "");
+      if (!selectedSheet) throw new Error("ไม่พบชีต Excel ที่ชื่อตรงกับชั้น/ห้อง กรุณาตรวจชื่อห้องหรือแยกไฟล์เป็นห้องเดียว");
+      return XLSX.utils.sheet_to_json(workbook.Sheets[selectedSheet], { header: 1, raw: false, defval: "" });
+    }
+
+    function renderPreview(rows) {
+      previewBody.replaceChildren();
+      const visibleRows = rows.slice(0, 5);
+      if (!visibleRows.length) {
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = 4;
+        cell.className = "empty";
+        cell.textContent = "ไม่พบแถวข้อมูล";
+        row.append(cell);
+        previewBody.append(row);
+        return;
+      }
+      for (const student of visibleRows) {
+        const row = document.createElement("tr");
+        for (const value of [student.id, student.number, student.name]) {
+          const cell = document.createElement("td");
+          cell.textContent = value;
+          row.append(cell);
+        }
+        const qrCell = document.createElement("td");
+        qrCell.textContent = "สร้าง QR ในชีตหลังอัปโหลด";
+        row.append(qrCell);
+        previewBody.append(row);
+      }
+    }
+
+    async function callScript(parameters) {
+      const response = await fetch(SCRIPT_URL, {
+        method: "POST",
+        body: new URLSearchParams({ ...parameters, token }),
+        redirect: "follow"
+      });
+      if (!response.ok) throw new Error(`เซิร์ฟเวอร์ตอบกลับ ${response.status}`);
+      const data = await response.json();
+      if (data.code === "AUTH_REQUIRED" || data.code === "FORBIDDEN") {
+        sessionStorage.removeItem(AUTH_TOKEN_KEY);
+        sessionStorage.removeItem(AUTH_ROLE_KEY);
+        location.replace("login.html?expired=1");
+        throw new Error(data.message || "เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง");
+      }
+      return data;
+    }
+
+    async function prepareRoster() {
+      const file = studentFile.files[0];
+      if (!file) throw new Error("กรุณาเลือกไฟล์รายชื่อนักเรียน");
+      if (!normalizeRoom(roomInput.value)) throw new Error("กรุณาระบุชั้น/ห้อง เช่น 6/10");
+      if (file.size > 10 * 1024 * 1024) throw new Error("ไฟล์ใหญ่เกิน 10 MB");
+      let rows = await readRosterFile(file, roomInput.value);
+      rows = rows.filter(row => row.some(value => String(value || "").trim()));
+      if (!rows.length) throw new Error("ไฟล์ไม่มีข้อมูล");
+      const firstRow = rows[0].map(value => String(value || "").trim().toLowerCase());
+      if ((/รหัส|เลข|student\s*id|^id$/.test(firstRow[0]) || /student\s*id/.test(firstRow[0]))
+          && /ชื่อ|name/.test(firstRow[2])) rows = rows.slice(1);
+      if (!rows.length) throw new Error("ไฟล์มีแต่หัวตาราง ไม่มีข้อมูลนักเรียน");
+      if (rows.length > 2000) throw new Error("อัปโหลดได้ไม่เกิน 2,000 รายชื่อต่อห้อง");
+      const students = [];
+      const seenIds = new Set();
+      for (const row of rows) {
+        const id = String(row[0] == null ? "" : row[0]).trim();
+        const normalizedId = id.replace(/\.0+$/, "");
+        const name = String(row[2] == null ? "" : row[2]).trim();
+        if (!normalizedId) throw new Error("พบแถวที่ไม่มีรหัสนักเรียน");
+        if (!name) throw new Error(`ไม่พบชื่อ-นามสกุลของรหัส ${id}`);
+        if (seenIds.has(normalizedId)) throw new Error(`พบรหัสนักเรียนซ้ำในไฟล์: ${id}`);
+        seenIds.add(normalizedId);
+        students.push({
+          id: normalizedId,
+          number: String(row[1] == null ? "" : row[1]).trim(),
+          name: name
+        });
+      }
+      parsedRows = students;
+      renderPreview(students);
+      document.getElementById("fileState").textContent = `${file.name} · ห้อง ${roomInput.value.trim()} · ${students.length} รายชื่อ`;
+      return students;
+    }
+
+    studentFile.addEventListener("change", () => {
+      parsedRows = null;
+      const file = studentFile.files[0];
+      document.getElementById("fileState").textContent = file ? `${file.name} · กดปุ่มเพื่อตรวจสอบตัวอย่างก่อนอัปโหลด` : "ยังไม่ได้เลือกไฟล์";
+      uploadStatus.textContent = "";
+    });
+
+    document.getElementById("uploadForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      uploadButton.disabled = true;
+      let uploadStarted = false;
+      let uploadCompleted = false;
+      try {
+        parsedRows = await prepareRoster();
+        const rosterRows = parsedRows.map(student => [student.id, student.number, student.name, ""]);
+        const jsonRows = JSON.stringify(rosterRows);
+        if (new TextEncoder().encode(jsonRows).length > 500000) throw new Error("ข้อมูลรายชื่อมีขนาดใหญ่เกินกำหนด");
+        if (!window.confirm(`ยืนยันแทนที่รายชื่อเดิมของห้อง ${roomInput.value.trim()} ด้วยข้อมูล ${parsedRows.length} คน พร้อมภาพ QR Code หรือไม่?`)) {
+          uploadStatus.textContent = "ยกเลิกการอัปโหลดแล้ว";
+          return;
+        }
+        if (!window.crypto || typeof window.crypto.randomUUID !== "function") {
+          throw new Error("เบราว์เซอร์นี้ไม่รองรับการสร้างรหัสอัปโหลดที่ปลอดภัย กรุณาใช้ Chrome รุ่นปัจจุบัน");
+        }
+        activeUploadId = window.crypto.randomUUID().replace(/-/g, "");
+        uploadStatus.textContent = "กำลังเตรียมชีตชั่วคราว…";
+        uploadStarted = true;
+        let data = await callScript({
+          action: "upload-roster-start",
+          uploadId: activeUploadId,
+          room: roomInput.value.trim(),
+          rows: jsonRows
+        });
+        if (!data.success) {
+          uploadStarted = false;
+          throw new Error(data.message || "เตรียมรายชื่อไม่สำเร็จ");
+        }
+
+        const imageBatchSize = 15;
+        for (let start = 0; start < parsedRows.length; start += imageBatchSize) {
+          const batch = parsedRows.slice(start, start + imageBatchSize).map(student => student.id);
+          data = await callScript({
+            action: "upload-roster-images",
+            uploadId: activeUploadId,
+            studentIds: JSON.stringify(batch)
+          });
+          if (!data.success) throw new Error(data.message || "สร้างภาพ QR ใน Apps Script ไม่สำเร็จ");
+          uploadStatus.textContent = `กำลังสร้าง QR ใน Apps Script ${Math.min(start + batch.length, parsedRows.length)} / ${parsedRows.length}…`;
+        }
+
+        data = await callScript({
+          action: "upload-roster-finalize",
+          uploadId: activeUploadId,
+          room: roomInput.value.trim()
+        });
+        if (!data.success) throw new Error(data.message || "บันทึกรายชื่อไม่สำเร็จ");
+        uploadCompleted = true;
+        uploadStarted = false;
+        uploadStatus.textContent = `อัปโหลดสำเร็จ · ห้อง ${data.room} · ${data.count} รายชื่อ · สร้างภาพ QR ในชีต ${data.sheet} แล้ว`;
+      } catch (error) {
+        console.error("Unable to upload student roster:", error);
+        uploadStatus.textContent = error.message || "อัปโหลดรายชื่อไม่สำเร็จ";
+      } finally {
+        if (uploadStarted && activeUploadId && !uploadCompleted) {
+          try {
+            const cleanup = await callScript({ action: "upload-roster-cancel", uploadId: activeUploadId });
+            if (!cleanup.success) throw new Error(cleanup.message || "ยกเลิกชีตชั่วคราวไม่สำเร็จ");
+          } catch (cleanupError) {
+            console.error("Unable to clean up incomplete roster upload:", cleanupError);
+            uploadStatus.textContent += " ชีตชั่วคราวยังอยู่ กรุณาแจ้งผู้ดูแลระบบ";
+          }
+        }
+        activeUploadId = null;
+        uploadButton.disabled = false;
+      }
+    });
+
+    document.getElementById("logoutButton").addEventListener("click", async () => {
+      try {
+        sessionStorage.removeItem(AUTH_TOKEN_KEY);
+        sessionStorage.removeItem(AUTH_ROLE_KEY);
+        await fetch(SCRIPT_URL, {
+          method: "POST",
+          body: new URLSearchParams({ action: "logout", token }),
+          redirect: "follow"
+        });
+      } catch (error) {
+        console.error("Logout failed:", error);
+      } finally {
+        location.replace("login.html");
+      }
+    });
+  </script>
+</body>
+</html>

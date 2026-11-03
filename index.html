@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5faff">
+  <title>สแกนเช็คชื่อเข้าเรียน</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --ink: #172b4d;
+      --muted: #718198;
+      --line: #e3eaf3;
+      --surface: #fff;
+      --page: #f4f7fc;
+      --green: #07805f;
+      --green-soft: #ecfdf5;
+      --red: #c53737;
+      --red-soft: #fff1f1;
+      --amber: #a96308;
+      --blue-soft: #eff6ff;
+      --blue-line: #d7e6fb;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 24px 28px 36px;
+      background:
+        radial-gradient(ellipse at 10% 0%, rgba(219,234,254,.78), transparent 34rem),
+        var(--page);
+      color: var(--ink);
+      font-family: 'Sarabun', sans-serif;
+      font-size: 14px;
+    }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    .page { width: min(100%, 1180px); margin: 0 auto; }
+    .header { position: relative; margin-bottom: 18px; padding: 4px 0 0; }
+    .eyebrow { margin-bottom: 5px; color: var(--primary); font-size: 10px; font-weight: 700; letter-spacing: .12em; }
+    h1 { margin: 0 0 4px; font-size: clamp(24px, 3vw, 32px); line-height: 1.2; font-weight: 700; letter-spacing: -.02em; }
+    .header-subtitle { margin: 0; color: var(--muted); font-size: 12px; }
+    .account-actions { position: absolute; top: 4px; right: 0; display: flex; align-items: center; gap: 8px; }
+    .login-badge {
+      padding: 6px 11px;
+      border-radius: 999px;
+      color: #176345;
+      background: #e9f8ef;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .logout-button { min-height: 32px; padding: 5px 11px; border: 1px solid var(--line); border-radius: 9px; background: #fff; color: #52647a; font-size: 10px; text-decoration: none; transition: border-color .15s, color .15s, background .15s; }
+    .logout-button:hover { border-color: #b7c9e6; color: var(--primary-dark); background: #f8fbff; }
+    .tabs { display: inline-flex; gap: 4px; margin-top: 15px; padding: 4px; border: 1px solid #e6ecf4; border-radius: 12px; background: rgba(255,255,255,.72); }
+    .tab {
+      min-height: 34px;
+      padding: 6px 13px;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      background: transparent;
+      color: #607087;
+      font-size: 11px;
+      font-weight: 600;
+      transition: background .15s, color .15s, box-shadow .15s;
+    }
+    .tab:hover { color: var(--primary-dark); background: #eff6ff; }
+    .tab.active { background: #fff; color: var(--primary-dark); box-shadow: 0 1px 5px rgba(24,49,83,.12); }
+    #soundToggle.active { background: #e9f8ef; color: #176345; box-shadow: none; }
+    #soundToggle.inactive { background: transparent; color: #8793a4; box-shadow: none; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(340px, .85fr); gap: 18px; align-items: start; }
+    .card { min-width: 0; border: 1px solid rgba(222,231,242,.95); border-radius: 18px; background: var(--surface); box-shadow: 0 12px 32px rgba(34,58,92,.055); }
+    .scanner-card { padding: 18px; }
+    .section-title { display: flex; align-items: center; gap: 8px; margin: 0 0 11px; font-size: 14px; font-weight: 700; }
+    .section-title::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 4px #eaf9ef; }
+    .reader-shell {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      overflow: hidden;
+      border: 1px solid #263449;
+      border-radius: 15px;
+      background: #0e1726;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.04), 0 8px 20px rgba(11,25,46,.13);
+    }
+    #reader { position: absolute; inset: 0; width: 100%; height: 100%; border: 0 !important; color: white; }
+    #reader video { width: 100% !important; height: 100% !important; object-fit: cover; }
+    #reader img, #reader canvas { display: none; }
+    #reader__scan_region { min-height: 100% !important; }
+    #reader__dashboard, #reader__header_message { display: none !important; }
+    .scan-frame {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 58%;
+      height: auto;
+      aspect-ratio: 1;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.5);
+      border-radius: 16px;
+      box-shadow: 0 0 0 999px rgba(5,12,22,.16);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    .reader-label {
+      position: absolute;
+      bottom: 11px;
+      left: 11px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: rgba(8,17,30,.76);
+      color: #fff;
+      font-size: 10px;
+      backdrop-filter: blur(8px);
+      pointer-events: none;
+    }
+    .reader-label::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: #94a3b8; vertical-align: 1px; }
+    .reader-label[data-live="true"]::before { background: #4ade80; box-shadow: 0 0 0 3px rgba(74,222,128,.18); }
+    .controls { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 13px; }
+    .field-label { display: block; margin-bottom: 5px; color: #68778e; font-size: 10px; font-weight: 600; }
+    select, input[type="text"] {
+      width: 100%;
+      min-height: 39px;
+      border: 1px solid #dfe7f1;
+      border-radius: 10px;
+      padding: 7px 10px;
+      background: #fbfcfe;
+      color: var(--ink);
+      font-size: 11px;
+    }
+    select:focus, input[type="text"]:focus { outline: 3px solid rgba(37,99,235,.12); border-color: #8db4f4; }
+    .camera-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 11px; }
+    .button {
+      min-height: 39px;
+      padding: 8px 12px;
+      border: 0;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      transition: transform .12s, background .15s, box-shadow .15s;
+    }
+    .button:active:not(:disabled) { transform: translateY(1px); }
+    .button-primary { background: var(--primary); color: #fff; box-shadow: 0 4px 10px rgba(37,99,235,.2); }
+    .button-primary:hover:not(:disabled) { background: var(--primary-dark); box-shadow: 0 6px 14px rgba(37,99,235,.24); }
+    .button-secondary { border: 1px solid #e2e8f0; background: #f8fafc; color: #52647a; }
+    .button-secondary:hover:not(:disabled) { background: #eef3f8; }
+    .button:disabled { cursor: not-allowed; opacity: .58; }
+    .status-caption { margin: 12px 0 3px; color: #52647a; font-size: 10px; font-weight: 700; }
+    .scanner-help { margin: 0; color: #738198; font-size: 10px; line-height: 1.6; }
+    .manual-section { margin-top: 15px; padding-top: 13px; border-top: 1px solid #edf1f6; }
+    .manual-heading { margin: 0 0 8px; font-size: 11px; font-weight: 700; }
+    .manual-label { display: block; margin-bottom: 5px; color: #68778e; font-size: 10px; }
+    .input-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+    .input-row .button { min-width: 82px; }
+    .tool-row { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
+    .chip {
+      min-height: 30px;
+      padding: 5px 10px;
+      border: 1px solid #e2eaf3;
+      border-radius: 8px;
+      background: #f8fafc;
+      color: #52647a;
+      font-size: 9px;
+    }
+    .chip:hover { border-color: #cbd9ea; background: #edf4fb; }
+    .chip-warn { border-color: #f2dfbd; background: #fff8eb; color: #91620c; }
+    .fine-print { margin: 10px 0 0; color: #8793a4; font-size: 9px; line-height: 1.6; }
+    .right-panel { display: grid; gap: 13px; }
+    .alert-box {
+      display: grid;
+      grid-template-columns: 46px minmax(0, 1fr);
+      align-items: center;
+      gap: 13px;
+      min-height: 144px;
+      padding: 19px;
+      border: 1px solid #f4caca;
+      border-radius: 18px;
+      background: var(--red-soft);
+      color: var(--red);
+      box-shadow: 0 10px 24px rgba(116,40,40,.055);
+      transition: background .18s, border-color .18s, color .18s;
+    }
+    .alert-icon {
+      display: grid;
+      width: 46px;
+      height: 46px;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--red);
+      color: white;
+      font-size: 23px;
+      font-weight: 700;
+    }
+    .alert-kicker { display: block; margin-bottom: 3px; color: #9b7777; font-size: 9px; font-weight: 600; letter-spacing: .04em; }
+    .alert-box h2 { margin: 0; font-size: clamp(18px, 2.2vw, 23px); line-height: 1.25; }
+    .alert-box p { margin: 6px 0 0; color: inherit; font-size: 11px; line-height: 1.55; opacity: .84; }
+    .alert-box.status-success { border-color: #bce7d2; background: var(--green-soft); color: #117451; }
+    .alert-box.status-success .alert-icon { background: #11946c; }
+    .alert-box.status-success .alert-kicker { color: #568a76; }
+    .alert-box.status-wait { border-color: #f0d9a9; background: #fff9ec; color: #8c5a07; }
+    .alert-box.status-wait .alert-icon { background: #d18a16; }
+    .alert-box.status-wait .alert-kicker { color: #9b8254; }
+    .stats-card { padding: 16px; }
+    .stats-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 0 11px; }
+    .stats-title { margin: 0; font-size: 13px; font-weight: 700; }
+    .today-label { padding: 4px 8px; border-radius: 999px; background: #f1f5f9; color: #718198; font-size: 9px; }
+    .stats-main {
+      padding: 15px 10px 13px;
+      border: 1px solid var(--blue-line);
+      border-radius: 14px;
+      background: linear-gradient(145deg, #f3f8ff, #edf5ff);
+      text-align: center;
+    }
+    .stats-main h3 { margin: 0 0 4px; color: #41658e; font-size: 11px; font-weight: 600; }
+    .stats-main .number { color: var(--primary); font-size: 64px; font-weight: 700; line-height: 1; letter-spacing: -.04em; }
+    .stats-main p { margin: 4px 0 0; color: #8290a4; font-size: 9px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 9px; }
+    .stat-tile { padding: 10px 4px 8px; border: 1px solid #e7edf5; border-radius: 11px; background: #fbfcfe; text-align: center; }
+    .stat-tile strong { display: block; color: #16806b; font-size: 17px; line-height: 1.2; }
+    .stat-tile:nth-child(2) strong { color: #397fa9; }
+    .stat-tile:nth-child(3) strong { color: var(--amber); }
+    .stat-tile span { color: #718198; font-size: 9px; }
+    .history-note { margin: 10px 1px 0; color: #8793a4; font-size: 9px; line-height: 1.5; }
+    .history {
+      min-height: 76px;
+      max-height: 270px;
+      overflow: auto;
+      margin-top: 7px;
+      border-top: 1px solid #edf1f6;
+    }
+    .history-empty { padding: 30px 8px; color: #8793a4; text-align: center; font-size: 10px; }
+    .history-item { display: flex; justify-content: space-between; gap: 10px; padding: 9px 3px; border-bottom: 1px solid #edf1f6; font-size: 10px; }
+    .history-item span:last-child { flex: 0 0 auto; color: #8793a4; font-variant-numeric: tabular-nums; }
+    .history-item.success .history-id { color: #117451; }
+    .history-item.error .history-id { color: #b12d35; }
+    .history-item.duplicate .history-id { color: #94620a; }
+    @media (max-width: 760px) {
+      body { padding: 18px 14px 28px; }
+      .layout { grid-template-columns: 1fr; gap: 13px; }
+      .reader-shell { aspect-ratio: 4 / 3; }
+      .alert-box { min-height: 118px; }
+    }
+    @media (max-width: 420px) {
+      body { padding: 14px 10px 22px; }
+      .header { padding-top: 2px; }
+      .header-subtitle { max-width: 220px; }
+      .account-actions { top: 0; gap: 5px; }
+      .login-badge { padding: 5px 7px; font-size: 9px; }
+      .logout-button { min-height: 29px; padding-inline: 7px; font-size: 9px; }
+      .tabs { width: 100%; }
+      .tab { flex: 1; padding-inline: 6px; font-size: 10px; }
+      .scanner-card { padding: 12px; }
+      .stats-card { padding: 12px; }
+      .alert-box { grid-template-columns: 38px minmax(0, 1fr); min-height: 108px; gap: 10px; padding: 13px; }
+      .alert-icon { width: 38px; height: 38px; font-size: 19px; }
+      .stats-main .number { font-size: 56px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <div class="eyebrow">PPW / QUEUE 1.0.0</div>
+      <h1>สแกนเช็คชื่อ</h1>
+      <p class="header-subtitle">สแกน QR นักเรียนเพื่อบันทึกการมาเรียน</p>
+      <div class="account-actions">
+        <span class="login-badge">เข้าสู่ระบบแล้ว</span>
+        <button class="logout-button" id="logoutButton" type="button">ออกจากระบบ</button>
+      </div>
+      <nav class="tabs" aria-label="โหมดการสแกน">
+        <button class="tab active" id="cameraMode" type="button" aria-pressed="true">กล้องสด</button>
+        <button class="tab" id="barcodeMode" type="button" aria-pressed="false">เครื่องยิง QR</button>
+        <button class="tab active" id="soundToggle" type="button" aria-pressed="true">เสียง: เปิด</button>
+      </nav>
+    </header>
+
+    <div class="layout">
+      <section class="card scanner-card" aria-label="เครื่องสแกนและจัดการคิว">
+        <h2 class="section-title">วางบัตรให้เห็น QR ครบกรอบ</h2>
+        <div class="reader-shell">
+          <div id="reader" aria-label="ภาพจากกล้อง"></div>
+          <div class="scan-frame" aria-hidden="true"></div>
+          <span class="reader-label" id="readerLabel" data-live="false">กล้องพร้อมใช้งาน</span>
+        </div>
+
+        <div class="controls">
+          <label>
+            <span class="field-label">กล้อง</span>
+            <select id="cameraSelect" aria-label="เลือกกล้อง">
+              <option value="">กล้องหน้า</option>
+            </select>
+          </label>
+        </div>
+        <div class="camera-actions">
+          <button class="button button-primary" id="startCamera" type="button">เปิดกล้อง</button>
+          <button class="button button-secondary" id="stopCamera" type="button" disabled>หยุดกล้อง</button>
+        </div>
+        <p class="status-caption">วิธีใช้กล้อง</p>
+        <p class="scanner-help">เว้น 3 วินาทีก่อนอ่าน QR รหัสเดิมซ้ำ · สแกนบัตรใบถัดไปได้ทันที</p>
+
+        <section class="manual-section" aria-label="เครื่องอ่านบาร์โค้ดและจัดการคิว">
+          <h2 class="manual-heading">▼ เครื่องอ่านบาร์โค้ด / จัดการคิว</h2>
+          <label class="manual-label" for="barcodeInput">เครื่องอ่านบาร์โค้ด / ข้อความจาก QR</label>
+          <div class="input-row">
+            <input id="barcodeInput" type="text" autocomplete="off" placeholder="กรอกรหัสนักเรียนหรือสแกนบัตร">
+            <button class="button button-secondary" id="submitCode" type="button">รับเข้าคิว</button>
+          </div>
+          <div class="tool-row">
+            <button class="chip" id="clearHistory" type="button">ล้างคิวหน้านี้</button>
+            <button class="chip" id="exportJson" type="button">ส่งออก JSON</button>
+            <button class="chip" id="exportCsv" type="button">ดาวน์โหลด CSV</button>
+          </div>
+          <div class="tool-row">
+            <button class="chip chip-warn" id="enableSound" type="button">อนุญาตเสียงแจ้งเตือน</button>
+            <button class="chip" id="focusInput" type="button">โฟกัสช่องกรอกบาร์โค้ด</button>
+          </div>
+          <p class="fine-print">อย่าลืมเปิดเสียงในเบราว์เซอร์ และจัดหน้าเว็บไว้กลางจอเพื่อให้สแกนได้ง่าย</p>
+        </section>
+      </section>
+
+      <section class="right-panel" aria-label="สถานะและสถิติ">
+        <div id="alertBox" class="alert-box status-wait" role="status" aria-live="polite">
+          <div class="alert-icon" id="alertIcon" aria-hidden="true">…</div>
+          <div>
+            <span class="alert-kicker">สถานะวันนี้</span>
+            <h2 id="alertTitle">พร้อมเริ่มสแกน</h2>
+            <p id="alertText">กด “เปิดกล้อง” แล้วจัด QR ให้อยู่ในกรอบเพื่อเช็คชื่อ</p>
+          </div>
+        </div>
+        <div class="card stats-card">
+          <div class="stats-header">
+            <h2 class="stats-title">คิวรายการ</h2>
+            <span class="today-label">ยอดเช็คชื่อในหน้านี้</span>
+          </div>
+          <div class="stats-main">
+            <h3>รับทั้งหมด</h3>
+            <div class="number" id="totalCount">0</div>
+            <p>รายการที่รับเข้าคิวในหน้านี้</p>
+          </div>
+          <div class="stats-grid" aria-label="สรุปผลการเช็คชื่อ">
+            <div class="stat-tile"><strong id="successCount">0</strong><span>บันทึกแล้ว</span></div>
+            <div class="stat-tile"><strong id="duplicateCount">0</strong><span>รายการซ้ำ</span></div>
+            <div class="stat-tile"><strong id="unknownCount">0</strong><span>ไม่พบข้อมูล</span></div>
+          </div>
+          <p class="history-note">รายการล่าสุดจะแสดงด้านล่าง · แสดงสูงสุด 100 รายการ</p>
+          <div class="history" id="historyList" aria-live="polite">
+            <div class="history-empty">ยังไม่มีรายการ · เปิดกล้องเพื่อเริ่มรับบัตร</div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwlHFOZ71s3oCZNHi1ei704q4G8AtQY9u3bLLdbkqoSWWjFhqmvMlSMuroCE3rveQfGbg/exec";
+    const AUTH_TOKEN_KEY = "attendanceSessionToken";
+    const AUTH_ROLE_KEY = "attendanceSessionRole";
+
+    let authToken = null;
+    try {
+      authToken = window.sessionStorage.getItem(AUTH_TOKEN_KEY);
+      if (authToken && window.sessionStorage.getItem(AUTH_ROLE_KEY) !== "scanner") {
+        window.sessionStorage.removeItem(AUTH_TOKEN_KEY);
+        window.sessionStorage.removeItem(AUTH_ROLE_KEY);
+        authToken = null;
+        window.location.replace("login.html");
+      }
+    } catch (error) {
+      console.error("Unable to read the login session:", error);
+    }
+    if (!authToken) window.location.replace("login.html");
+
+    let isProcessing = false;
+    let soundEnabled = true;
+    let html5QrCode = null;
+    let activeCameraId = "";
+    const cameraScanCooldowns = new Map();
+    const CAMERA_SCAN_COOLDOWN_MS = 3000;
+    let uiGeneration = 0;
+    let counts = { total: 0, success: 0, duplicate: 0, unknown: 0 };
+    const history = [];
+    const checkedStudentIds = new Set();
+
+    const elements = {
+      alertBox: document.getElementById("alertBox"),
+      alertIcon: document.getElementById("alertIcon"),
+      alertTitle: document.getElementById("alertTitle"),
+      alertText: document.getElementById("alertText"),
+      cameraSelect: document.getElementById("cameraSelect"),
+      barcodeInput: document.getElementById("barcodeInput"),
+      historyList: document.getElementById("historyList"),
+      startCamera: document.getElementById("startCamera"),
+      stopCamera: document.getElementById("stopCamera"),
+      readerLabel: document.getElementById("readerLabel")
+    };
+
+    async function callScript(parameters) {
+      const response = await fetch(SCRIPT_URL, {
+        method: "POST",
+        body: new URLSearchParams(parameters),
+        redirect: "follow"
+      });
+      if (!response.ok) throw new Error(`เซิร์ฟเวอร์ตอบกลับ ${response.status}`);
+      return response.json();
+    }
+
+    async function logout() {
+      const token = authToken;
+      authToken = null;
+      try {
+        window.sessionStorage.removeItem(AUTH_TOKEN_KEY);
+        window.sessionStorage.removeItem(AUTH_ROLE_KEY);
+        window.sessionStorage.removeItem(AUTH_ROLE_KEY);
+      } catch (error) {
+        console.error("Unable to clear the login session:", error);
+      }
+      try {
+        if (token) {
+          const data = await callScript({ action: "logout", token });
+          if (!data.success && data.code !== "AUTH_REQUIRED") {
+            throw new Error(data.message || "ยกเลิกเซสชันไม่สำเร็จ");
+          }
+        }
+      } catch (error) {
+        console.error("Server logout failed:", error);
+      } finally {
+        window.location.replace("login.html");
+      }
+    }
+
+    function updateAlert(type, title, text) {
+      const icons = { success: "✓", error: "!", wait: "…" };
+      elements.alertBox.className = `alert-box status-${type}`;
+      elements.alertIcon.textContent = icons[type] || "!";
+      elements.alertTitle.textContent = title;
+      elements.alertText.textContent = text;
+    }
+
+    function playBeep(isSuccess) {
+      if (!soundEnabled) return;
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      const context = new AudioContextClass();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.type = isSuccess ? "sine" : "sawtooth";
+      oscillator.frequency.value = isSuccess ? 800 : 300;
+      gain.gain.value = 0.08;
+      oscillator.start();
+      oscillator.stop(context.currentTime + (isSuccess ? 0.15 : 0.3));
+      oscillator.addEventListener("ended", () => context.close());
+    }
+
+    function setSound(enabled) {
+      soundEnabled = enabled;
+      const toggle = document.getElementById("soundToggle");
+      toggle.classList.toggle("active", enabled);
+      toggle.classList.toggle("inactive", !enabled);
+      toggle.textContent = `เสียง: ${enabled ? "เปิด" : "ปิด"}`;
+      toggle.setAttribute("aria-pressed", String(enabled));
+    }
+
+    function renderCounts() {
+      document.getElementById("totalCount").textContent = counts.total;
+      document.getElementById("successCount").textContent = counts.success;
+      document.getElementById("duplicateCount").textContent = counts.duplicate;
+      document.getElementById("unknownCount").textContent = counts.unknown;
+    }
+
+    function addHistory(id, result, message) {
+      history.unshift({ id, result, message, time: new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) });
+      history.splice(100);
+      elements.historyList.replaceChildren();
+      if (history.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "history-empty";
+        empty.textContent = "ยังไม่มีรายการ · เปิดกล้องเพื่อเริ่มรับบัตร";
+        elements.historyList.append(empty);
+        return;
+      }
+
+      for (const item of history) {
+        const row = document.createElement("div");
+        row.className = `history-item ${item.result}`;
+        const label = document.createElement("span");
+        label.className = "history-id";
+        label.textContent = `${item.id} · ${item.message}`;
+        const time = document.createElement("span");
+        time.textContent = item.time;
+        row.append(label, time);
+        elements.historyList.append(row);
+      }
+    }
+
+    function isDuplicateMessage(message) {
+      return /ซ้ำ|duplicate|already|ลงชื่อแล้ว/i.test(message);
+    }
+
+    function handleCameraScan(scannedText) {
+      const studentKey = scannedText.trim().toLocaleLowerCase("en-US");
+      if (!studentKey || !authToken || isProcessing) return;
+      const now = Date.now();
+      if (now - (cameraScanCooldowns.get(studentKey) || 0) < CAMERA_SCAN_COOLDOWN_MS) return;
+      for (const [key, scannedAt] of cameraScanCooldowns) {
+        if (now - scannedAt >= CAMERA_SCAN_COOLDOWN_MS) cameraScanCooldowns.delete(key);
+      }
+      cameraScanCooldowns.set(studentKey, now);
+      processScan(scannedText);
+    }
+
+    async function processScan(scannedText) {
+      const studentId = scannedText.trim();
+      if (!studentId || !authToken || isProcessing) return;
+      const studentKey = studentId.toLocaleLowerCase("en-US");
+      if (checkedStudentIds.has(studentKey)) {
+        counts.total += 1;
+        counts.duplicate += 1;
+        const message = "รหัสนี้เช็คชื่อแล้วในหน้านี้";
+        renderCounts();
+        addHistory(studentId, "duplicate", message);
+        updateAlert("wait", "รายการซ้ำ", message);
+        playBeep(false);
+        elements.barcodeInput.value = "";
+        elements.barcodeInput.focus();
+        return;
+      }
+
+      isProcessing = true;
+      const requestGeneration = uiGeneration;
+      updateAlert("wait", "กำลังตรวจสอบ…", `รหัส: ${studentId}`);
+
+      try {
+        const data = await callScript({ action: "scan", id: studentId, token: authToken });
+        if (data.code === "AUTH_REQUIRED") {
+          try {
+            window.sessionStorage.removeItem(AUTH_TOKEN_KEY);
+          } catch (error) {
+            console.error("Unable to clear the expired login session:", error);
+          }
+          window.location.replace("login.html?expired=1");
+          return;
+        }
+        if (typeof data.success !== "boolean") throw new Error("รูปแบบข้อมูลตอบกลับไม่ถูกต้อง");
+        if (requestGeneration !== uiGeneration) return;
+
+        counts.total += 1;
+        const message = String(data.message || (data.success ? "บันทึกสำเร็จ" : "ไม่พบข้อมูล"));
+        let result;
+        const serverMarkedDuplicate = data.duplicate === true
+          || isDuplicateMessage(message)
+          || /duplicate|already_checked|already-checked/i.test(String(data.status || ""));
+        if (serverMarkedDuplicate) {
+          result = "duplicate";
+          counts.duplicate += 1;
+          checkedStudentIds.add(studentKey);
+          updateAlert("wait", "รายการซ้ำ", message);
+          playBeep(false);
+        } else if (data.success) {
+          result = "success";
+          counts.success += 1;
+          checkedStudentIds.add(studentKey);
+          updateAlert("success", "บันทึกสำเร็จ", message);
+          playBeep(true);
+        } else {
+          result = "error";
+          counts.unknown += 1;
+          updateAlert("error", "ไม่พบข้อมูล", message);
+          playBeep(false);
+        }
+        renderCounts();
+        addHistory(studentId, result, message);
+      } catch (error) {
+        console.error("Attendance scan failed:", error);
+        if (requestGeneration === uiGeneration) {
+          updateAlert("error", "เชื่อมต่อล้มเหลว", error.message || "ไม่สามารถส่งข้อมูลไปที่ฐานข้อมูลได้");
+          playBeep(false);
+        }
+      } finally {
+        isProcessing = false;
+        if (requestGeneration === uiGeneration) {
+          elements.barcodeInput.value = "";
+          elements.barcodeInput.focus();
+          if (elements.alertBox.classList.contains("status-success") || elements.alertBox.classList.contains("status-wait")) {
+            window.setTimeout(() => {
+              if (!isProcessing && requestGeneration === uiGeneration) updateAlert("wait", "พร้อมรับบัตร", "เปิดหน้ากล้องหรือใช้เครื่องยิงบาร์โค้ดเพื่อเริ่มรายการ");
+            }, 2500);
+          }
+        }
+      }
+    }
+
+    async function loadCameras() {
+      if (!window.Html5Qrcode) throw new Error("โหลดระบบสแกน QR ไม่สำเร็จ กรุณารีเฟรชหน้าเว็บ");
+      const cameras = await Html5Qrcode.getCameras();
+      if (!cameras.length) throw new Error("ไม่พบกล้อง กรุณาตรวจสอบอุปกรณ์และสิทธิ์การใช้งานกล้อง");
+
+      const previousId = elements.cameraSelect.value;
+      elements.cameraSelect.replaceChildren();
+      for (const [index, camera] of cameras.entries()) {
+        const option = document.createElement("option");
+        option.value = camera.id;
+        option.textContent = camera.label || `กล้อง ${index + 1}`;
+        elements.cameraSelect.append(option);
+      }
+      const preferredCamera = cameras.find(camera => /back|rear|environment/i.test(camera.label)) || cameras[0];
+      elements.cameraSelect.value = cameras.some(camera => camera.id === previousId) ? previousId : preferredCamera.id;
+      return elements.cameraSelect.value;
+    }
+
+    async function startCamera() {
+      elements.startCamera.disabled = true;
+      try {
+        const cameraId = await loadCameras();
+        if (!html5QrCode) html5QrCode = new Html5Qrcode("reader", { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] });
+        if (activeCameraId) await html5QrCode.stop();
+        await html5QrCode.start(
+          cameraId,
+          { fps: 10, qrbox: { width: 240, height: 240 }, aspectRatio: 4 / 3 },
+          decodedText => handleCameraScan(decodedText),
+          () => {}
+        );
+        activeCameraId = cameraId;
+        elements.readerLabel.dataset.live = "true";
+        elements.readerLabel.textContent = "กล้องกำลังทำงาน";
+        elements.stopCamera.disabled = false;
+        updateAlert("wait", "พร้อมรับบัตร", "เปิดหน้ากล้องแล้ว · จัด QR ให้อยู่ในกรอบ");
+      } catch (error) {
+        console.error("Unable to start camera:", error);
+        activeCameraId = "";
+        elements.readerLabel.dataset.live = "false";
+        elements.readerLabel.textContent = "กล้องพร้อมใช้งาน";
+        elements.stopCamera.disabled = true;
+        updateAlert("error", "เปิดกล้องไม่สำเร็จ", error.message || "กรุณาอนุญาตการใช้กล้องแล้วลองอีกครั้ง");
+      } finally {
+        elements.startCamera.disabled = false;
+      }
+    }
+
+    async function stopCamera() {
+      if (!html5QrCode || !activeCameraId) return;
+      elements.stopCamera.disabled = true;
+      try {
+        await html5QrCode.stop();
+        activeCameraId = "";
+        elements.readerLabel.dataset.live = "false";
+        elements.readerLabel.textContent = "หยุดกล้องแล้ว";
+        updateAlert("wait", "หยุดกล้องแล้ว", "กด “เปิดกล้อง” เมื่อต้องการสแกนต่อ");
+      } catch (error) {
+        console.error("Unable to stop camera:", error);
+        updateAlert("error", "หยุดกล้องไม่สำเร็จ", error.message || "กรุณาลองอีกครั้ง");
+        elements.stopCamera.disabled = false;
+      }
+    }
+
+    function downloadFile(name, content, type) {
+      const blob = new Blob([content], { type });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    document.getElementById("cameraMode").addEventListener("click", () => {
+      document.getElementById("cameraMode").classList.add("active");
+      document.getElementById("cameraMode").setAttribute("aria-pressed", "true");
+      document.getElementById("barcodeMode").classList.remove("active");
+      document.getElementById("barcodeMode").setAttribute("aria-pressed", "false");
+    });
+    document.getElementById("logoutButton").addEventListener("click", logout);
+    document.getElementById("barcodeMode").addEventListener("click", () => {
+      document.getElementById("barcodeMode").classList.add("active");
+      document.getElementById("barcodeMode").setAttribute("aria-pressed", "true");
+      document.getElementById("cameraMode").classList.remove("active");
+      document.getElementById("cameraMode").setAttribute("aria-pressed", "false");
+      elements.barcodeInput.focus();
+    });
+    document.getElementById("soundToggle").addEventListener("click", () => setSound(!soundEnabled));
+    document.getElementById("enableSound").addEventListener("click", async () => {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) {
+        updateAlert("error", "อุปกรณ์นี้ไม่รองรับเสียง", "สามารถเช็คชื่อได้ตามปกติ");
+        return;
+      }
+      const context = new AudioContextClass();
+      await context.resume();
+      await context.close();
+      setSound(true);
+      updateAlert("success", "เปิดเสียงแจ้งเตือนแล้ว", "พร้อมรับบัตรเพื่อเช็คชื่อ");
+    });
+    elements.startCamera.addEventListener("click", startCamera);
+    elements.stopCamera.addEventListener("click", stopCamera);
+    elements.cameraSelect.addEventListener("change", () => {
+      if (activeCameraId) startCamera();
+    });
+    elements.barcodeInput.addEventListener("keydown", event => {
+      if (event.key === "Enter") processScan(elements.barcodeInput.value);
+    });
+    document.getElementById("submitCode").addEventListener("click", () => processScan(elements.barcodeInput.value));
+    document.getElementById("focusInput").addEventListener("click", () => elements.barcodeInput.focus());
+    document.getElementById("clearHistory").addEventListener("click", () => {
+      uiGeneration += 1;
+      counts = { total: 0, success: 0, duplicate: 0, unknown: 0 };
+      history.length = 0;
+      renderCounts();
+      elements.historyList.innerHTML = '<div class="history-empty">ล้างคิวในหน้านี้แล้ว · พร้อมรับบัตร</div>';
+      updateAlert("wait", "ล้างคิวในหน้านี้แล้ว", "ข้อมูลที่บันทึกบนเซิร์ฟเวอร์ไม่ได้ถูกลบ");
+    });
+    document.getElementById("exportJson").addEventListener("click", () => {
+      downloadFile("attendance.json", JSON.stringify({ counts, history }, null, 2), "application/json");
+    });
+    document.getElementById("exportCsv").addEventListener("click", () => {
+      const escapeCsv = value => `"${String(value).replaceAll('"', '""')}"`;
+      const rows = [["รหัส", "ผลลัพธ์", "ข้อความ", "เวลา"], ...history.map(item => [item.id, item.result, item.message, item.time])];
+      downloadFile("attendance.csv", `\uFEFF${rows.map(row => row.map(escapeCsv).join(",")).join("\r\n")}`, "text/csv;charset=utf-8");
+    });
+  </script>
+</body>
+</html>
