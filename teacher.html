@@ -52,7 +52,46 @@
     .status-label { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; }
     .demo { color: var(--muted); font-size: 10px; }
     .save-note { margin: 10px 0 0; color: var(--muted); font-size: 10px; }
-    @media (max-width: 620px) { body { padding: 17px 12px; } .header { flex-direction: column; } .summary { grid-template-columns: repeat(2, 1fr); } .filters { align-items: stretch; } .filter { flex: 1 1 130px; } }
+    @media (max-width: 620px) {
+      body { padding: 16px 14px 28px; font-size: 16px; }
+      .page { width: 100%; }
+      .header { flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 14px; }
+      .eyebrow { font-size: 12px; }
+      h1 { margin: 3px 0 5px; font-size: clamp(25px, 7vw, 30px); line-height: 1.25; }
+      .subtitle { font-size: 14px; line-height: 1.6; }
+      .actions { width: 100%; }
+      .button { min-height: 44px; padding: 8px 13px; font-size: 14px; }
+      .notice { margin-bottom: 14px; padding: 13px 14px; border-radius: 12px; font-size: 14px; line-height: 1.7; }
+      .card { padding: 15px 13px; border-radius: 14px; }
+      .filters { align-items: stretch; gap: 10px; margin-bottom: 15px; }
+      .filter { flex: 1 1 140px; gap: 5px; font-size: 13px; }
+      input, select { width: 100%; min-height: 46px; padding: 9px 10px; border-radius: 10px; font-size: 16px; }
+      #teacherRoom { font-size: 16px; color: var(--ink); }
+      .demo { flex: 1 0 100%; font-size: 13px; }
+      .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 15px; }
+      .stat { min-height: 76px; padding: 11px; border-radius: 11px; }
+      .stat strong { font-size: 25px; }
+      .stat span { font-size: 13px; }
+      .table-wrap { overflow-x: hidden; margin: 0; padding: 0; }
+      table { width: 100%; min-width: 0; table-layout: fixed; }
+      th { padding: 10px 4px; font-size: 11px; white-space: normal; }
+      td { padding: 10px 4px; font-size: 12px; white-space: normal; overflow-wrap: anywhere; }
+      th:nth-child(1), td:nth-child(1) { width: 12%; }
+      th:nth-child(2), td:nth-child(2) { width: 43%; }
+      th:nth-child(3), td:nth-child(3) { width: 45%; }
+      .status-picker { flex-wrap: nowrap; min-width: 0; gap: 4px; }
+      .status-option { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 7px 2px; border-radius: 8px; font-size: 14px; }
+      .status-label { margin-top: 6px; font-size: 12px; }
+      .save-note { margin-top: 13px; font-size: 13px; line-height: 1.6; }
+    }
+    @media (max-width: 380px) {
+      body { padding-right: 10px; padding-left: 10px; }
+      .card { padding-right: 11px; padding-left: 11px; }
+      th { padding-right: 3px; padding-left: 3px; font-size: 10px; }
+      td { padding-right: 3px; padding-left: 3px; font-size: 11px; }
+      .status-picker { gap: 4px; }
+      .status-option { min-height: 42px; font-size: 13px; }
+    }
   </style>
 </head>
 <body>
@@ -91,7 +130,7 @@
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>เลขที่</th><th>รหัสนักเรียน</th><th>ชื่อ - นามสกุล</th><th>สถานะ</th></tr></thead>
+          <thead><tr><th>เลขที่</th><th>ชื่อ - นามสกุล</th><th>สถานะ</th></tr></thead>
           <tbody id="studentRows"></tbody>
         </table>
       </div>
@@ -172,7 +211,7 @@
       const totals = { present: 0, leave: 0, absent: 0, unchecked: 0 };
       for (const student of students) {
         const row = document.createElement("tr");
-        for (const value of [student.number, student.id, student.name]) {
+        for (const value of [student.number, student.name]) {
           const cell = document.createElement("td");
           cell.textContent = value;
           row.append(cell);

@@ -42,7 +42,38 @@
     th { color: var(--muted); font-weight: 600; }
     .empty { padding: 18px 8px; color: var(--muted); text-align: center; white-space: normal; }
     .status { min-height: 19px; margin: 9px 0 0; color: var(--amber); font-size: 11px; line-height: 1.5; }
-    @media (max-width: 620px) { body { padding: 17px 12px; } .header { flex-direction: column; } .card { padding: 14px; } }
+    @media (max-width: 620px) {
+      body { padding: 16px 14px 28px; font-size: 16px; }
+      .page { width: 100%; }
+      .header { flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 14px; }
+      .eyebrow { font-size: 12px; }
+      h1 { margin: 3px 0 5px; font-size: clamp(25px, 7vw, 30px); line-height: 1.25; }
+      .subtitle { font-size: 14px; line-height: 1.6; }
+      .header > .button { align-self: flex-start; min-height: 42px; padding: 8px 14px; font-size: 14px; }
+      .notice { margin-bottom: 14px; padding: 13px 14px; border-radius: 12px; font-size: 14px; line-height: 1.7; }
+      .card { padding: 16px 14px; border-radius: 14px; }
+      .card h2 { margin-bottom: 7px; font-size: 19px; line-height: 1.4; }
+      .card-description { margin-bottom: 17px; font-size: 14px; line-height: 1.65; }
+      .form { gap: 15px; }
+      .field { gap: 7px; font-size: 14px; font-weight: 600; }
+      input { min-height: 48px; padding: 10px 12px; border-radius: 10px; font-size: 16px; }
+      .file-input { min-height: 52px; padding: 8px; font-size: 14px; }
+      .hint { margin-top: -7px; font-size: 13px; line-height: 1.65; }
+      .warning { padding: 12px 13px; border-radius: 10px; font-size: 14px; line-height: 1.7; }
+      .file-state { min-height: 46px; padding: 11px; font-size: 13px; line-height: 1.6; }
+      .button { min-height: 48px; padding: 10px 13px; border-radius: 10px; font-size: 14px; }
+      .status { margin-top: 11px; font-size: 14px; line-height: 1.65; }
+      .table-wrap { margin: 14px -14px 0; padding: 0 14px 5px; }
+      table { min-width: 590px; }
+      th, td { padding: 11px 10px; font-size: 13px; }
+      .empty { white-space: normal; }
+    }
+    @media (max-width: 380px) {
+      body { padding-right: 10px; padding-left: 10px; }
+      .card { padding-right: 12px; padding-left: 12px; }
+      .table-wrap { margin-right: -12px; margin-left: -12px; padding-right: 12px; padding-left: 12px; }
+      table { min-width: 560px; }
+    }
   </style>
 </head>
 <body>
