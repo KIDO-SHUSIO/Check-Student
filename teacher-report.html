@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5faff">
+  <title>สรุปการเข้าเรียน | ระบบเช็คชื่อ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { color-scheme: light; --primary: #347daf; --primary-dark: #28658f; --ink: #263746; --muted: #7d8c99; --line: #dfebf4; --page: #f5faff; --red: #b52e2b; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px 20px; background: var(--page); color: var(--ink); font-family: 'Sarabun', sans-serif; font-size: 14px; }
+    button, input { font: inherit; }
+    .page { width: min(100%, 1020px); margin: 0 auto; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+    .eyebrow { color: var(--primary); font-size: 10px; font-weight: 700; letter-spacing: .06em; }
+    h1 { margin: 2px 0 3px; font-size: 25px; }
+    h2 { margin: 0 0 5px; font-size: 17px; }
+    .subtitle, .description { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .actions, .controls { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+    .button { display: inline-flex; min-height: 36px; align-items: center; justify-content: center; padding: 7px 12px; border: 1px solid var(--line); border-radius: 9px; background: #fff; color: #526b7d; font-size: 11px; text-decoration: none; cursor: pointer; }
+    .button:hover:not(:disabled) { border-color: #9dc9e7; color: var(--primary-dark); }
+    .button-primary { border-color: var(--primary); background: var(--primary); color: #fff; }
+    .button-primary:hover:not(:disabled) { background: var(--primary-dark); color: #fff; }
+    .button:disabled { cursor: wait; opacity: .6; }
+    .card { padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+    .description { margin-bottom: 14px; }
+    .controls { margin-bottom: 12px; }
+    .field { display: grid; min-width: 150px; gap: 4px; color: var(--muted); font-size: 11px; }
+    input { min-height: 38px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font-size: 12px; }
+    input:focus { outline: 2px solid rgba(52,125,175,.15); border-color: #83b9de; }
+    .status { min-height: 20px; margin: 8px 0 10px; color: var(--muted); font-size: 11px; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; min-width: 680px; border-collapse: collapse; text-align: left; }
+    th, td { padding: 9px 10px; border-bottom: 1px solid #edf3f8; font-size: 11px; white-space: nowrap; }
+    th { color: var(--muted); font-weight: 600; }
+    th:nth-child(n+3), td:nth-child(n+3) { text-align: center; }
+    tr.late-warning > td { background: #fff3bf; color: #745300; }
+    tr.late-warning > td:nth-child(2), tr.late-critical > td:nth-child(2) { font-weight: 700; }
+    tr.late-critical > td { background: #fde2e1; color: #9d201c; }
+    tfoot td { border-top: 2px solid var(--line); font-weight: 700; }
+    .empty { padding: 18px 8px; color: var(--muted); text-align: center; }
+    [hidden] { display: none !important; }
+    @media (max-width: 620px) {
+      body { padding: 16px 14px 28px; font-size: 16px; }
+      .page { width: 100%; }
+      .header { flex-direction: column; align-items: stretch; gap: 12px; }
+      .eyebrow { font-size: 12px; }
+      h1 { font-size: clamp(25px, 7vw, 30px); line-height: 1.25; }
+      .subtitle, .description { font-size: 14px; }
+      .actions { width: 100%; }
+      .button { min-height: 44px; padding: 8px 13px; font-size: 14px; }
+      .card { padding: 15px 13px; }
+      h2 { font-size: 19px; }
+      .field { flex: 1 1 140px; gap: 5px; font-size: 13px; }
+      input { width: 100%; min-height: 46px; padding: 9px 10px; font-size: 16px; }
+      .status { font-size: 14px; line-height: 1.6; }
+      .table-wrap { margin: 0 -13px; padding: 0 13px 5px; }
+      th, td { padding: 11px 9px; font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <div>
+        <div class="eyebrow">PT/ TEACHER REPORT</div>
+        <h1>สรุปจำนวนครั้งการเข้าเรียน</h1>
+        <p class="subtitle">สรุปจำนวนครั้งมา/ตรงเวลา สาย ลา และขาด แยกตามรายชื่อนักเรียน</p>
+      </div>
+      <nav class="actions" aria-label="นำทางและจัดการบัญชี">
+        <a class="button" href="teacher.html">กลับหน้าเช็คชื่อประจำห้อง</a>
+        <button class="button" id="logoutButton" type="button">ออกจากระบบ</button>
+      </nav>
+    </header>
+
+    <section class="card" aria-label="รายงานจำนวนครั้งการเข้าเรียน">
+      <h2 id="roomTitle">สรุปของห้องเรียน</h2>
+      <p class="description">เลือกช่วงวันที่ที่ต้องการ ระบบนับจากประวัติในชีต Attendance · สายตั้งแต่ 5 ครั้งแสดงแถบเหลือง และตั้งแต่ 7 ครั้งแสดงแถบแดง</p>
+      <div class="controls">
+        <label class="field" for="startDate">ตั้งแต่วันที่
+          <input id="startDate" type="date">
+        </label>
+        <label class="field" for="endDate">ถึงวันที่
+          <input id="endDate" type="date">
+        </label>
+        <button class="button button-primary" id="loadReportButton" type="button">แสดงตาราง</button>
+      </div>
+      <p class="status" id="reportStatus" role="status" aria-live="polite"></p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>เลขที่</th><th>ชื่อ - นามสกุล</th><th>มา / ตรงเวลา</th><th>สาย</th><th>ลา</th><th>ขาด</th></tr></thead>
+          <tbody id="reportRows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzcSx4V_DkM3Ls6xUmxwzv_kdQLXq588ircDTvJx3GFqfQA2qeZCAKXgdLe87T5OrSGMA/exec";
+    const AUTH_TOKEN_KEY = "attendanceSessionToken";
+    const AUTH_ROLE_KEY = "attendanceSessionRole";
+    let token = null;
+    try {
+      token = sessionStorage.getItem(AUTH_TOKEN_KEY);
+      if (!token || sessionStorage.getItem(AUTH_ROLE_KEY) !== "teacher") location.replace("login.html");
+    } catch (error) {
+      console.error("Unable to read login session:", error);
+      location.replace("login.html");
+    }
+
+    const startDate = document.getElementById("startDate");
+    const endDate = document.getElementById("endDate");
+    const reportStatus = document.getElementById("reportStatus");
+    const reportRows = document.getElementById("reportRows");
+    let requestGeneration = 0;
+
+    function localDateValue() {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    }
+
+    async function loadReport() {
+      if (!startDate.value || !endDate.value || startDate.value > endDate.value) {
+        reportStatus.textContent = "กรุณาเลือกช่วงวันที่ให้ถูกต้อง";
+        return;
+      }
+
+      const generation = ++requestGeneration;
+      const button = document.getElementById("loadReportButton");
+      button.disabled = true;
+      reportRows.replaceChildren();
+      reportStatus.textContent = "กำลังโหลดสรุปจำนวนครั้ง…";
+      try {
+        const response = await fetch(SCRIPT_URL, {
+          method: "POST",
+          body: new URLSearchParams({
+            action: "teacher-attendance-counts",
+            startDate: startDate.value,
+            endDate: endDate.value,
+            token: token
+          }),
+          redirect: "follow"
+        });
+        if (!response.ok) throw new Error(`เซิร์ฟเวอร์ตอบกลับ ${response.status}`);
+        const data = await response.json();
+        if (generation !== requestGeneration) return;
+        if (data.code === "AUTH_REQUIRED" || data.code === "FORBIDDEN") {
+          sessionStorage.removeItem(AUTH_TOKEN_KEY);
+          sessionStorage.removeItem(AUTH_ROLE_KEY);
+          location.replace("login.html?expired=1");
+          return;
+        }
+        if (!data.success || !Array.isArray(data.students)) {
+          throw new Error(data.message || "โหลดสรุปจำนวนครั้งไม่สำเร็จ");
+        }
+
+        document.getElementById("roomTitle").textContent = data.room
+          ? `สรุปห้อง ม. ${data.room}`
+          : "สรุปของห้องเรียน";
+        for (const student of data.students) {
+          const row = document.createElement("tr");
+          const lateCount = Number(student.counts && student.counts["สาย"]) || 0;
+          if (lateCount >= 7) row.classList.add("late-critical");
+          else if (lateCount >= 5) row.classList.add("late-warning");
+          for (const value of [student.number || "-", student.name || "-"]) {
+            const cell = document.createElement("td");
+            cell.textContent = value;
+            row.append(cell);
+          }
+          for (const status of ["มา", "สาย", "ลา", "ขาด"]) {
+            const count = Number(student.counts && student.counts[status]) || 0;
+            const cell = document.createElement("td");
+            cell.textContent = String(count);
+            row.append(cell);
+          }
+          reportRows.append(row);
+        }
+        if (!data.students.length) {
+          const row = document.createElement("tr");
+          const cell = document.createElement("td");
+          cell.className = "empty";
+          cell.colSpan = 6;
+          cell.textContent = "ไม่พบรายชื่อนักเรียนในห้องนี้";
+          row.append(cell);
+          reportRows.append(row);
+        }
+        reportStatus.textContent = `${data.startDate} ถึง ${data.endDate} · ${data.students.length} คน`;
+      } catch (error) {
+        if (generation !== requestGeneration) return;
+        console.error("Unable to load attendance count report:", error);
+        reportStatus.textContent = error.message || "โหลดสรุปจำนวนครั้งไม่สำเร็จ";
+      } finally {
+        if (generation === requestGeneration) button.disabled = false;
+      }
+    }
+
+    const today = localDateValue();
+    endDate.value = today;
+    startDate.value = `${today.slice(0, 7)}-01`;
+    document.getElementById("loadReportButton").addEventListener("click", loadReport);
+    loadReport();
+
+    document.getElementById("logoutButton").addEventListener("click", async () => {
+      try {
+        sessionStorage.removeItem(AUTH_TOKEN_KEY);
+        sessionStorage.removeItem(AUTH_ROLE_KEY);
+        await fetch(SCRIPT_URL, {
+          method: "POST",
+          body: new URLSearchParams({ action: "logout", token: token }),
+          redirect: "follow"
+        });
+      } catch (error) {
+        console.error("Logout failed:", error);
+      } finally {
+        location.replace("login.html");
+      }
+    });
+  </script>
+</body>
+</html>

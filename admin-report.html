@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5faff">
+  <title>รายงานการเข้าเรียน | ระบบเช็คชื่อ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { color-scheme: light; --primary: #347daf; --primary-dark: #28658f; --ink: #263746; --muted: #7d8c99; --line: #dfebf4; --page: #f5faff; --red: #b52e2b; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px 20px; background: var(--page); color: var(--ink); font-family: 'Sarabun', sans-serif; font-size: 14px; }
+    button, input, select { font: inherit; }
+    .page { width: min(100%, 1020px); margin: 0 auto; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+    .eyebrow { color: var(--primary); font-size: 10px; font-weight: 700; letter-spacing: .06em; }
+    h1 { margin: 2px 0 3px; font-size: 25px; }
+    h2 { margin: 0 0 5px; font-size: 17px; }
+    .subtitle, .description { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .actions, .controls { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+    .button { display: inline-flex; min-height: 36px; align-items: center; justify-content: center; padding: 7px 12px; border: 1px solid var(--line); border-radius: 9px; background: #fff; color: #526b7d; font-size: 11px; text-decoration: none; cursor: pointer; }
+    .button:hover:not(:disabled) { border-color: #9dc9e7; color: var(--primary-dark); }
+    .button-primary { border-color: var(--primary); background: var(--primary); color: #fff; }
+    .button-primary:hover:not(:disabled) { background: var(--primary-dark); color: #fff; }
+    .button:disabled { cursor: not-allowed; opacity: .6; }
+    .card { padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+    .description { margin-bottom: 14px; }
+    .controls { margin-bottom: 12px; }
+    .field { display: grid; min-width: 150px; gap: 4px; color: var(--muted); font-size: 11px; }
+    input, select { min-height: 38px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font-size: 12px; }
+    input:focus, select:focus { outline: 2px solid rgba(52,125,175,.15); border-color: #83b9de; }
+    .status { min-height: 20px; margin: 8px 0 10px; color: var(--muted); font-size: 11px; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; min-width: 720px; border-collapse: collapse; text-align: left; }
+    th, td { padding: 9px 10px; border-bottom: 1px solid #edf3f8; font-size: 11px; white-space: nowrap; }
+    th { color: var(--muted); font-weight: 600; }
+    th:nth-child(n+4), td:nth-child(n+4) { text-align: center; }
+    tr.late-warning > td { background: #fff3bf; color: #745300; }
+    tr.late-warning > td:nth-child(2), tr.late-critical > td:nth-child(2) { font-weight: 700; }
+    tr.late-critical > td { background: #fde2e1; color: #9d201c; }
+    .empty { padding: 18px 8px; color: var(--muted); text-align: center; }
+    @media (max-width: 620px) {
+      body { padding: 16px 14px 28px; font-size: 16px; }
+      .page { width: 100%; }
+      .header { flex-direction: column; align-items: stretch; gap: 12px; }
+      .eyebrow { font-size: 12px; }
+      h1 { font-size: clamp(25px, 7vw, 30px); line-height: 1.25; }
+      .subtitle, .description { font-size: 14px; }
+      .actions { width: 100%; }
+      .button { min-height: 44px; padding: 8px 13px; font-size: 14px; }
+      .card { padding: 15px 13px; }
+      h2 { font-size: 19px; }
+      .field { flex: 1 1 140px; gap: 5px; font-size: 13px; }
+      input, select { width: 100%; min-height: 46px; padding: 9px 10px; font-size: 16px; }
+      .status { font-size: 14px; line-height: 1.6; }
+      .table-wrap { margin: 0 -13px; padding: 0 13px 5px; }
+      th, td { padding: 11px 9px; font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <div>
+        <div class="eyebrow">PT/ ADMIN REPORT</div>
+        <h1>รายชื่อนักเรียนตามสถานะการเข้าเรียน</h1>
+        <p class="subtitle">สรุปจำนวนครั้งมา/ตรงเวลา สาย ลา และขาด แยกตามนักเรียนในห้อง</p>
+      </div>
+      <nav class="actions" aria-label="นำทางและจัดการบัญชี">
+        <a class="button" href="upload.html">กลับหน้าอัปโหลดรายชื่อนักเรียน</a>
+        <button class="button" id="logoutButton" type="button">ออกจากระบบ</button>
+      </nav>
+    </header>
+
+    <section class="card" aria-label="รายงานจำนวนครั้งการเข้าเรียน">
+      <h2 id="reportTitle">เลือกชั้นและห้องเรียน</h2>
+      <p class="description">เลือกชั้น ห้อง และช่วงวันที่เพื่อดูจำนวนครั้งของแต่ละสถานะ · สายตั้งแต่ 5 ครั้งแสดงแถบเหลือง และตั้งแต่ 7 ครั้งแสดงแถบแดง</p>
+      <div class="controls">
+        <label class="field" for="reportGrade">ระดับชั้น
+          <select id="reportGrade" disabled>
+            <option value="">กำลังโหลดห้องเรียน…</option>
+          </select>
+        </label>
+        <label class="field" for="reportRoom">ห้องเรียน
+          <select id="reportRoom" disabled>
+            <option value="">เลือกระดับชั้นก่อน</option>
+          </select>
+        </label>
+        <label class="field" for="startDate">ตั้งแต่วันที่
+          <input id="startDate" type="date">
+        </label>
+        <label class="field" for="endDate">ถึงวันที่
+          <input id="endDate" type="date">
+        </label>
+        <button class="button button-primary" id="loadReportButton" type="button" disabled>แสดงตาราง</button>
+      </div>
+      <p class="status" id="reportStatus" role="status" aria-live="polite"></p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>เลขที่</th><th>ชื่อ - นามสกุล</th><th>รหัสนักเรียน</th><th>มา / ตรงเวลา</th><th>สาย</th><th>ลา</th><th>ขาด</th></tr></thead>
+          <tbody id="reportRows">
+            <tr><td class="empty" colspan="7">เลือกระดับชั้น ห้อง และช่วงวันที่ แล้วกดแสดงตาราง</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzcSx4V_DkM3Ls6xUmxwzv_kdQLXq588ircDTvJx3GFqfQA2qeZCAKXgdLe87T5OrSGMA/exec";
+    const AUTH_TOKEN_KEY = "attendanceSessionToken";
+    const AUTH_ROLE_KEY = "attendanceSessionRole";
+    let token = null;
+    try {
+      token = sessionStorage.getItem(AUTH_TOKEN_KEY);
+      if (!token || sessionStorage.getItem(AUTH_ROLE_KEY) !== "admin") location.replace("login.html");
+    } catch (error) {
+      console.error("Unable to read administrator session:", error);
+      location.replace("login.html");
+    }
+
+    const reportGrade = document.getElementById("reportGrade");
+    const reportRoom = document.getElementById("reportRoom");
+    const startDate = document.getElementById("startDate");
+    const endDate = document.getElementById("endDate");
+    const reportStatus = document.getElementById("reportStatus");
+    const reportRows = document.getElementById("reportRows");
+    let rooms = [];
+    let requestGeneration = 0;
+
+    async function callAdmin(action, parameters = {}) {
+      const response = await fetch(SCRIPT_URL, {
+        method: "POST",
+        body: new URLSearchParams({ action, ...parameters, token }),
+        redirect: "follow"
+      });
+      if (!response.ok) throw new Error(`เซิร์ฟเวอร์ตอบกลับ ${response.status}`);
+      const data = await response.json();
+      if (data.code === "AUTH_REQUIRED" || data.code === "FORBIDDEN") {
+        sessionStorage.removeItem(AUTH_TOKEN_KEY);
+        sessionStorage.removeItem(AUTH_ROLE_KEY);
+        location.replace("login.html?expired=1");
+        throw new Error(data.message || "ไม่มีสิทธิ์เข้าถึง กรุณาเข้าสู่ระบบใหม่");
+      }
+      if (!data.success) throw new Error(data.message || "ดำเนินการไม่สำเร็จ");
+      return data;
+    }
+
+    function localDateValue() {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    }
+
+    function clearReport(message) {
+      reportRows.replaceChildren();
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.className = "empty";
+      cell.colSpan = 7;
+      cell.textContent = message;
+      row.append(cell);
+      reportRows.append(row);
+    }
+
+    function updateLoadButton() {
+      document.getElementById("loadReportButton").disabled =
+        !reportRoom.value || !startDate.value || !endDate.value;
+    }
+
+    function updateRooms() {
+      const grade = reportGrade.value;
+      const availableRooms = rooms.filter(room => room.grade === grade);
+      reportRoom.replaceChildren();
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = grade ? "เลือกห้องเรียน" : "เลือกระดับชั้นก่อน";
+      reportRoom.append(placeholder);
+      for (const room of availableRooms) {
+        const option = document.createElement("option");
+        option.value = room.room;
+        option.textContent = `ม.${room.room[0]} ห้อง ${Number(room.room.slice(1))} · ${room.count} คน`;
+        reportRoom.append(option);
+      }
+      reportRoom.disabled = !grade || availableRooms.length === 0;
+      if (grade && !availableRooms.length) placeholder.textContent = "ไม่พบห้องในระดับชั้นนี้";
+      reportGeneration += 1;
+      document.getElementById("reportTitle").textContent = grade ? `รายงานการเข้าเรียน ม.${grade}` : "เลือกชั้นและห้องเรียน";
+      reportStatus.textContent = "";
+      clearReport("เลือกห้องและช่วงวันที่ แล้วกดแสดงตาราง");
+      updateLoadButton();
+    }
+
+    async function loadRooms() {
+      reportStatus.textContent = "กำลังโหลดห้องเรียน…";
+      try {
+        const data = await callAdmin("admin-roster-list");
+        rooms = data.rooms;
+        const grades = [...new Set(rooms.map(room => room.grade))].sort();
+        reportGrade.replaceChildren();
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = grades.length ? "เลือกระดับชั้น" : "ยังไม่มีห้องเรียน";
+        reportGrade.append(placeholder);
+        for (const grade of grades) {
+          const option = document.createElement("option");
+          option.value = grade;
+          option.textContent = `ม.${grade}`;
+          reportGrade.append(option);
+        }
+        reportGrade.disabled = grades.length === 0;
+        reportStatus.textContent = grades.length ? "" : "ยังไม่มีห้องเรียนในระบบ";
+        updateRooms();
+      } catch (error) {
+        console.error("Unable to load report rooms:", error);
+        reportStatus.textContent = error.message || "โหลดห้องเรียนไม่สำเร็จ";
+      }
+    }
+
+    async function loadReport() {
+      if (!reportRoom.value || !startDate.value || !endDate.value || startDate.value > endDate.value) {
+        reportStatus.textContent = "กรุณาเลือกชั้น ห้อง และช่วงวันที่ให้ถูกต้อง";
+        return;
+      }
+      const generation = ++requestGeneration;
+      const button = document.getElementById("loadReportButton");
+      button.disabled = true;
+      clearReport("กำลังโหลดรายงาน…");
+      reportStatus.textContent = "กำลังโหลดรายงาน…";
+      try {
+        const data = await callAdmin("admin-attendance-report", {
+          room: reportRoom.value,
+          startDate: startDate.value,
+          endDate: endDate.value
+        });
+        if (generation !== requestGeneration) return;
+        if (!Array.isArray(data.students)) throw new Error("ข้อมูลรายงานจากเซิร์ฟเวอร์ไม่ถูกต้อง");
+        reportRows.replaceChildren();
+        for (const student of data.students) {
+          const row = document.createElement("tr");
+          const lateCount = Number(student.counts && student.counts["สาย"]) || 0;
+          if (lateCount >= 7) row.classList.add("late-critical");
+          else if (lateCount >= 5) row.classList.add("late-warning");
+          for (const value of [student.number || "-", student.name || "-", student.id || "-"]) {
+            const cell = document.createElement("td");
+            cell.textContent = value;
+            row.append(cell);
+          }
+          for (const status of ["มา", "สาย", "ลา", "ขาด"]) {
+            const cell = document.createElement("td");
+            cell.textContent = String(Number(student.counts && student.counts[status]) || 0);
+            row.append(cell);
+          }
+          reportRows.append(row);
+        }
+        if (!data.students.length) clearReport("ไม่พบรายชื่อนักเรียนในห้องนี้");
+        document.getElementById("reportTitle").textContent = `รายงานการเข้าเรียน ${roomLabel(data.room)}`;
+        reportStatus.textContent = `${data.startDate} ถึง ${data.endDate} · ${data.students.length} คน`;
+      } catch (error) {
+        if (generation !== requestGeneration) return;
+        console.error("Unable to load attendance report:", error);
+        reportStatus.textContent = error.message || "โหลดรายงานไม่สำเร็จ";
+        clearReport("โหลดรายงานไม่สำเร็จ");
+      } finally {
+        if (generation === requestGeneration) updateLoadButton();
+      }
+    }
+
+    function roomLabel(room) {
+      return `ม.${room[0]} ห้อง ${Number(room.slice(1))}`;
+    }
+
+    reportGrade.addEventListener("change", updateRooms);
+    reportRoom.addEventListener("change", () => {
+      requestGeneration += 1;
+      reportStatus.textContent = "";
+      clearReport("เลือกช่วงวันที่ แล้วกดแสดงตาราง");
+      updateLoadButton();
+    });
+    for (const input of [startDate, endDate]) {
+      input.addEventListener("change", () => {
+        requestGeneration += 1;
+        reportStatus.textContent = "";
+        clearReport("กดแสดงตารางเพื่อโหลดรายงานตามช่วงวันที่");
+        updateLoadButton();
+      });
+    }
+    document.getElementById("loadReportButton").addEventListener("click", loadReport);
+
+    const today = localDateValue();
+    endDate.value = today;
+    startDate.value = `${today.slice(0, 7)}-01`;
+    loadRooms();
+
+    document.getElementById("logoutButton").addEventListener("click", async () => {
+      try {
+        sessionStorage.removeItem(AUTH_TOKEN_KEY);
+        sessionStorage.removeItem(AUTH_ROLE_KEY);
+        await fetch(SCRIPT_URL, {
+          method: "POST",
+          body: new URLSearchParams({ action: "logout", token }),
+          redirect: "follow"
+        });
+      } catch (error) {
+        console.error("Logout failed:", error);
+      } finally {
+        location.replace("login.html");
+      }
+    });
+  </script>
+</body>
+</html>

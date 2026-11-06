@@ -13,9 +13,10 @@
     :root { color-scheme: light; --primary: #347daf; --primary-dark: #28658f; --ink: #263746; --muted: #7d8c99; --line: #dfebf4; --page: #f5faff; --blue-soft: #edf7ff; --amber: #94620a; --red: #b52e2b; }
     * { box-sizing: border-box; }
     body { margin: 0; padding: 24px 20px; background: var(--page); color: var(--ink); font-family: 'Sarabun', sans-serif; font-size: 14px; }
-    button, input { font: inherit; }
+    button, input, select { font: inherit; }
     .page { width: min(100%, 760px); margin: 0 auto; }
     .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+    .header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
     .eyebrow { color: var(--primary); font-size: 10px; font-weight: 700; letter-spacing: .06em; }
     h1 { margin: 2px 0 3px; font-size: 25px; }
     .subtitle { margin: 0; color: var(--muted); font-size: 12px; }
@@ -31,7 +32,10 @@
     .form { display: grid; gap: 12px; }
     .field { display: grid; gap: 5px; color: #526b7d; font-size: 11px; }
     input { width: 100%; min-height: 39px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font-size: 12px; }
+    select { width: 100%; min-height: 39px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font-size: 12px; }
     input:focus { outline: 2px solid rgba(52,125,175,.15); border-color: #83b9de; }
+    select:focus { outline: 2px solid rgba(52,125,175,.15); border-color: #83b9de; }
+    .room-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
     .file-input { padding: 7px; }
     .hint { margin: -5px 0 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
     .warning { padding: 10px 12px; border: 1px solid #f0d39a; border-radius: 9px; background: #fff8e9; color: var(--amber); font-size: 11px; line-height: 1.6; }
@@ -42,10 +46,38 @@
     th { color: var(--muted); font-weight: 600; }
     .empty { padding: 18px 8px; color: var(--muted); text-align: center; white-space: normal; }
     .status { min-height: 19px; margin: 9px 0 0; color: var(--amber); font-size: 11px; line-height: 1.5; }
+    [hidden] { display: none !important; }
+    .management-card { margin-top: 16px; }
+    .management-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 9px; }
+    .management-toolbar { margin-bottom: 12px; }
+    .management-toolbar .field { min-width: 130px; }
+    .student-actions { display: flex; gap: 5px; }
+    .button-small { min-height: 30px; padding: 4px 8px; font-size: 10px; }
+    .button-danger { border-color: #efc5c2; color: var(--red); }
+    .student-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin: 12px 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #f8fbfe; }
+    .student-form .field { min-width: 0; }
+    .student-form .field select { width: 100%; min-height: 39px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font-size: 12px; }
+    .student-form-actions { display: flex; grid-column: 1 / -1; gap: 8px; }
+    .management-status { min-height: 20px; margin: 9px 0 0; color: var(--amber); font-size: 11px; }
+    .teacher-assignment { display: flex; align-items: center; gap: 8px; }
+    .teacher-assignment select { min-width: 150px; }
+    .assignment-step { margin-top: 12px; }
+    .assignment-step-title { margin: 0 0 10px; font-size: 13px; font-weight: 700; }
+    .assignment-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .room-choice-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+    .room-choice { min-height: 42px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: #fff; color: var(--ink); text-align: left; cursor: pointer; }
+    .room-choice:hover, .room-choice[aria-pressed="true"] { border-color: var(--primary); background: var(--blue-soft); color: var(--primary-dark); }
+    .teacher-choice-list { display: grid; gap: 7px; max-height: 360px; overflow-y: auto; }
+    .teacher-choice { display: flex; align-items: center; gap: 9px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+    .teacher-choice input { width: 18px; min-height: 18px; margin: 0; accent-color: var(--primary); }
+    .teacher-choice span { flex: 1; }
+    .teacher-choice small { color: var(--muted); }
+    .assignment-teacher-search { margin-bottom: 8px; }
     @media (max-width: 620px) {
       body { padding: 16px 14px 28px; font-size: 16px; }
       .page { width: 100%; }
       .header { flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 14px; }
+      .header-actions { width: 100%; }
       .eyebrow { font-size: 12px; }
       h1 { margin: 3px 0 5px; font-size: clamp(25px, 7vw, 30px); line-height: 1.25; }
       .subtitle { font-size: 14px; line-height: 1.6; }
@@ -57,12 +89,28 @@
       .form { gap: 15px; }
       .field { gap: 7px; font-size: 14px; font-weight: 600; }
       input { min-height: 48px; padding: 10px 12px; border-radius: 10px; font-size: 16px; }
+      select { min-height: 48px; padding: 10px 12px; border-radius: 10px; font-size: 16px; }
+      .room-fields { grid-template-columns: 1fr 1fr; gap: 8px; }
       .file-input { min-height: 52px; padding: 8px; font-size: 14px; }
       .hint { margin-top: -7px; font-size: 13px; line-height: 1.65; }
       .warning { padding: 12px 13px; border-radius: 10px; font-size: 14px; line-height: 1.7; }
       .file-state { min-height: 46px; padding: 11px; font-size: 13px; line-height: 1.6; }
       .button { min-height: 48px; padding: 10px 13px; border-radius: 10px; font-size: 14px; }
       .status { margin-top: 11px; font-size: 14px; line-height: 1.65; }
+      .management-card { margin-top: 14px; }
+      .management-toolbar { align-items: stretch; }
+      .management-toolbar .field { flex: 1 1 140px; font-size: 14px; }
+      .student-form { grid-template-columns: 1fr; gap: 11px; padding: 12px; }
+      .student-form .field { font-size: 14px; }
+      .student-form .field select { min-height: 48px; font-size: 16px; }
+      .student-form-actions { grid-column: auto; }
+      .student-actions .button { min-height: 40px; font-size: 13px; }
+      .management-status { font-size: 14px; line-height: 1.6; }
+      .teacher-assignment { flex-wrap: wrap; }
+      .teacher-assignment select { flex: 1 1 150px; }
+      .assignment-step-title { font-size: 16px; }
+      .room-choice { min-height: 48px; font-size: 14px; }
+      .teacher-choice { min-height: 48px; font-size: 14px; }
       .table-wrap { margin: 14px -14px 0; padding: 0 14px 5px; }
       table { min-width: 590px; }
       th, td { padding: 11px 10px; font-size: 13px; }
@@ -82,9 +130,12 @@
       <div>
         <div class="eyebrow">PT/ ADMIN UPLOAD</div>
         <h1>อัปโหลดรายชื่อนักเรียน</h1>
-        <p class="subtitle">เลือกไฟล์และกำหนดชั้น/ห้องเพื่อแทนที่รายชื่อใน Google Sheet</p>
+        <p class="subtitle">เลือกชั้นและห้องเพื่อนำเข้าหรือจัดการรายชื่อนักเรียนใน Google Sheet</p>
       </div>
-      <button class="button" id="logoutButton" type="button">ออกจากระบบ</button>
+      <nav class="header-actions" aria-label="จัดการบัญชี">
+        <a class="button button-primary" href="admin-report.html">รายชื่อนักเรียนตามสถานะการเข้าเรียน</a>
+        <button class="button" id="logoutButton" type="button">ออกจากระบบ</button>
+      </nav>
     </header>
 
     <div class="notice" id="pageNotice" role="status" aria-live="polite">
@@ -93,17 +144,27 @@
 
     <section class="card" aria-label="อัปโหลดรายชื่อนักเรียน">
       <h2>นำเข้ารายชื่อแยกตามห้อง</h2>
-      <p class="card-description">หากเป็นไฟล์ Excel ที่มีหลายชีต ระบบจะเลือกชีตที่ชื่อห้องตรงกับชั้น/ห้องที่กรอก ชื่อแท็บปลายทางจะแสดงตามห้องที่ระบุ</p>
+      <p class="card-description">เลือกชั้นและเลขห้อง แล้วเลือกไฟล์รายชื่อ หากเป็น Excel หลายชีต ระบบจะเลือกชีตที่ชื่อตรงกับห้อง ห้องที่ยังไม่มีจะถูกสร้างให้อัตโนมัติ</p>
       <form class="form" id="uploadForm">
-        <label class="field" for="roomInput">ชั้น / ห้อง
-          <input id="roomInput" name="room" type="text" placeholder="ตัวอย่าง 6/10 หรือ ม.610" maxlength="30" required>
-        </label>
+        <div class="room-fields">
+          <label class="field" for="uploadGrade">ระดับชั้น
+            <select id="uploadGrade" name="grade" required>
+              <option value="">เลือกระดับชั้น</option>
+              <option value="1">ม.1</option><option value="2">ม.2</option><option value="3">ม.3</option>
+              <option value="4">ม.4</option><option value="5">ม.5</option><option value="6">ม.6</option>
+            </select>
+          </label>
+          <label class="field" for="uploadClassroom">เลขห้อง
+            <input id="uploadClassroom" name="classroom" type="number" min="1" max="99" step="1" placeholder="เช่น 10" required>
+          </label>
+        </div>
         <p class="hint" id="sheetNamePreview">ชื่อแท็บชีตหลังอัปโหลด: กรุณาระบุชั้น/ห้อง</p>
+        <button class="button" id="createUploadRoomButton" type="button">สร้างห้องเปล่าตามชั้น/ห้องที่เลือก</button>
         <label class="field" for="studentFile">ไฟล์รายชื่อนักเรียน (CSV / Excel)
           <input class="file-input" id="studentFile" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" required>
         </label>
-        <p class="hint">ลำดับคอลัมน์: A รหัสนักเรียน · B เลขที่ · C ชื่อ-นามสกุล · D QR Code (สร้างใน Apps Script, แถวแรกมีหัวตารางได้)</p>
-        <div class="warning">การอัปโหลดจะแทนที่รายชื่อเดิมของห้องที่เลือกทั้งหมด ชีต Attendance และประวัติการเช็คชื่อจะไม่ถูกลบ</div>
+        <p class="hint">ต้องมีคอลัมน์รหัสนักเรียน/เลขประจำตัวและชื่อ-นามสกุล ระบบอ่านตามหัวตารางได้แม้สลับลำดับคอลัมน์ (หากไม่มีหัวตาราง ใช้ A=รหัส · B=เลขที่ · C=ชื่อ)</p>
+        <div class="warning">การอัปโหลดจะแทนที่รายชื่อเดิมของห้องที่เลือกทั้งหมด แต่ประวัติการเช็คชื่อในชีต Attendance จะยังคงอยู่</div>
         <p class="file-state" id="fileState">ยังไม่ได้เลือกไฟล์</p>
         <button class="button button-primary" id="uploadButton" type="submit">ตรวจสอบและอัปโหลดรายชื่อ</button>
       </form>
@@ -115,10 +176,94 @@
         </table>
       </div>
     </section>
+
+    <section class="card management-card" aria-label="จัดการห้องเรียนและรายชื่อนักเรียน">
+      <h2>จัดการห้องและรายชื่อนักเรียน</h2>
+      <p class="card-description">เลือกชั้นและห้องเพื่อเพิ่ม แก้ไข ลบ หรือย้ายนักเรียน การย้ายห้องจะย้ายประวัติเช็คชื่อด้วย ส่วนการลบจะลบประวัติของนักเรียนคนนั้น</p>
+      <div class="management-toolbar">
+        <label class="field" for="gradeFilter">ระดับชั้น
+          <select id="gradeFilter">
+            <option value="">ทุกระดับชั้น</option>
+            <option value="1">ม.1</option><option value="2">ม.2</option><option value="3">ม.3</option>
+            <option value="4">ม.4</option><option value="5">ม.5</option><option value="6">ม.6</option>
+          </select>
+        </label>
+        <label class="field" for="managedRoom">ห้องเรียน
+          <select id="managedRoom"><option value="">เลือกห้องเรียน</option></select>
+        </label>
+        <button class="button button-primary" id="addStudentButton" type="button" disabled>เพิ่มนักเรียน</button>
+        <button class="button button-danger" id="deleteRoomButton" type="button" disabled>ลบทั้งห้อง</button>
+      </div>
+      <form class="student-form" id="studentForm" hidden>
+        <label class="field" for="studentIdInput">รหัสนักเรียน
+          <input id="studentIdInput" maxlength="41" required>
+        </label>
+        <label class="field" for="studentNumberInput">เลขที่
+          <input id="studentNumberInput" maxlength="30">
+        </label>
+        <label class="field" for="studentNameInput">ชื่อ-นามสกุล
+          <input id="studentNameInput" maxlength="120" required>
+        </label>
+        <label class="field" for="studentRoomInput">ห้องเรียน
+          <select id="studentRoomInput" required></select>
+        </label>
+        <div class="student-form-actions">
+          <button class="button button-primary" id="saveStudentButton" type="submit">บันทึก</button>
+          <button class="button" id="cancelStudentButton" type="button">ยกเลิก</button>
+        </div>
+      </form>
+      <p class="management-status" id="managementStatus" role="status" aria-live="polite"></p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>รหัสนักเรียน</th><th>เลขที่</th><th>ชื่อ-นามสกุล</th><th>จัดการ</th></tr></thead>
+          <tbody id="managedStudentsBody"><tr><td class="empty" colspan="4">เลือกห้องเรียนเพื่อแสดงรายชื่อ</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card management-card" aria-label="กำหนดครูประจำห้อง">
+      <h2>กำหนดครูประจำห้อง</h2>
+      <p class="card-description">เลือกชั้น เลือกห้อง แล้วเลือกครูได้หลายคนพร้อมกัน ครูหนึ่งคนดูแลได้ห้องเดียว</p>
+      <p class="management-status" id="teacherAssignmentStatus" role="status" aria-live="polite">กำลังโหลดข้อมูล…</p>
+      <div class="assignment-step" id="assignmentStepGrade">
+        <h3 class="assignment-step-title">ขั้นที่ 1: เลือกระดับชั้น</h3>
+        <label class="field" for="assignmentGrade">ระดับชั้น
+          <select id="assignmentGrade">
+            <option value="">เลือกระดับชั้น</option>
+            <option value="1">ม.1</option><option value="2">ม.2</option><option value="3">ม.3</option>
+            <option value="4">ม.4</option><option value="5">ม.5</option><option value="6">ม.6</option>
+          </select>
+        </label>
+        <div class="assignment-actions">
+          <button class="button button-primary" id="assignmentGradeNext" type="button" disabled>ถัดไป: เลือกห้อง</button>
+        </div>
+      </div>
+      <div class="assignment-step" id="assignmentStepRoom" hidden>
+        <h3 class="assignment-step-title">ขั้นที่ 2: เลือกห้องเรียน</h3>
+        <div class="room-choice-list" id="assignmentRoomChoices"></div>
+        <div class="assignment-actions">
+          <button class="button" id="assignmentRoomBack" type="button">ย้อนกลับ</button>
+          <button class="button button-primary" id="assignmentRoomNext" type="button" disabled>ถัดไป: เลือกครู</button>
+        </div>
+      </div>
+      <div class="assignment-step" id="assignmentStepTeachers" hidden>
+        <h3 class="assignment-step-title" id="assignmentTeacherTitle">ขั้นที่ 3: เลือกครู</h3>
+        <label class="field assignment-teacher-search" for="assignmentTeacherSearch">
+          ค้นหาชื่อ นามสกุล หรือเลขประจำตัวครู
+          <input id="assignmentTeacherSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อ นามสกุล หรือเลขประจำตัว">
+        </label>
+        <p class="hint" id="assignmentTeacherResultCount" aria-live="polite"></p>
+        <div class="teacher-choice-list" id="assignmentTeacherChoices"></div>
+        <div class="assignment-actions">
+          <button class="button" id="assignmentTeacherBack" type="button">ย้อนกลับ</button>
+          <button class="button button-primary" id="assignmentTeacherSave" type="button">บันทึกครูประจำห้อง</button>
+        </div>
+      </div>
+    </section>
   </main>
 
   <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwlHFOZ71s3oCZNHi1ei704q4G8AtQY9u3bLLdbkqoSWWjFhqmvMlSMuroCE3rveQfGbg/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzcSx4V_DkM3Ls6xUmxwzv_kdQLXq588ircDTvJx3GFqfQA2qeZCAKXgdLe87T5OrSGMA/exec";
     const AUTH_TOKEN_KEY = "attendanceSessionToken";
     const AUTH_ROLE_KEY = "attendanceSessionRole";
     let token = null;
@@ -132,28 +277,49 @@
 
     let parsedRows = null;
     let activeUploadId = null;
-    const roomInput = document.getElementById("roomInput");
+    let managedRooms = [];
+    let roomLoadGeneration = 0;
+    let editingStudent = null;
+    let assignmentTeachers = [];
+    let assignmentRooms = [];
+    let selectedAssignmentRoom = "";
+    let assignmentSelectionRoom = "";
+    let selectedAssignmentTeacherIds = new Set();
+    const uploadGrade = document.getElementById("uploadGrade");
+    const uploadClassroom = document.getElementById("uploadClassroom");
     const studentFile = document.getElementById("studentFile");
     const uploadButton = document.getElementById("uploadButton");
     const uploadStatus = document.getElementById("uploadStatus");
     const previewBody = document.getElementById("previewBody");
+    const gradeFilter = document.getElementById("gradeFilter");
+    const managedRoom = document.getElementById("managedRoom");
+    const studentRoomInput = document.getElementById("studentRoomInput");
+    const studentForm = document.getElementById("studentForm");
+    const managedStudentsBody = document.getElementById("managedStudentsBody");
+    const managementStatus = document.getElementById("managementStatus");
+    const teacherAssignmentStatus = document.getElementById("teacherAssignmentStatus");
 
-    roomInput.addEventListener("input", updateSheetNamePreview);
+    uploadGrade.addEventListener("change", updateSheetNamePreview);
+    uploadClassroom.addEventListener("input", updateSheetNamePreview);
 
     function normalizeRoom(value) {
       return String(value || "").replace(/\D/g, "");
     }
 
-    function getRoomSheetName(value) {
-      const room = String(value || "").trim().replace(/^ม\.\s*/i, "");
-      return `ม.${normalizeRoom(room)}`;
+    function getUploadRoom() {
+      const grade = uploadGrade.value;
+      const classroom = uploadClassroom.value.trim();
+      if (!/^[1-6]$/.test(grade) || !/^\d{1,2}$/.test(classroom)
+          || Number(classroom) < 1 || Number(classroom) > 99) return "";
+      return grade + Number(classroom);
     }
 
     function updateSheetNamePreview() {
-      const roomKey = normalizeRoom(roomInput.value);
+      const roomKey = getUploadRoom();
       document.getElementById("sheetNamePreview").textContent = roomKey
-        ? `ชื่อแท็บชีตหลังอัปโหลด: ${getRoomSheetName(roomInput.value)}`
+        ? `ชื่อแท็บชีตหลังอัปโหลด: ม.${roomKey} · ${roomLabel(roomKey)}`
         : "ชื่อแท็บชีตหลังอัปโหลด: กรุณาระบุชั้น/ห้อง";
+      document.getElementById("createUploadRoomButton").disabled = !roomKey;
     }
 
     function parseCsv(text) {
@@ -192,6 +358,16 @@
       row.push(value.trim());
       if (row.some(cell => cell !== "")) rows.push(row);
       return rows;
+    }
+
+    function findRosterColumns(headerRow) {
+      const headers = headerRow.map(value => String(value == null ? "" : value).trim().toLowerCase().replace(/\s+/g, ""));
+      const idColumn = headers.findIndex(value => /รหัส|เลขประจำตัว|student\s*id|^id$/.test(value));
+      const numberColumn = headers.findIndex(value => /^(?:เลขที่|ลำดับ(?:ที่)?|no\.?|number)$/.test(value));
+      const nameColumn = headers.findIndex(value => /ชื่อ|name/.test(value));
+      return idColumn >= 0 && nameColumn >= 0
+        ? { id: idColumn, number: numberColumn, name: nameColumn }
+        : null;
     }
 
     async function readRosterFile(file, room) {
@@ -254,35 +430,36 @@
     async function prepareRoster() {
       const file = studentFile.files[0];
       if (!file) throw new Error("กรุณาเลือกไฟล์รายชื่อนักเรียน");
-      if (!normalizeRoom(roomInput.value)) throw new Error("กรุณาระบุชั้น/ห้อง เช่น 6/10");
+      const room = getUploadRoom();
+      if (!room) throw new Error("กรุณาเลือกระดับชั้นและระบุเลขห้อง 1–99");
       if (file.size > 10 * 1024 * 1024) throw new Error("ไฟล์ใหญ่เกิน 10 MB");
-      let rows = await readRosterFile(file, roomInput.value);
+      let rows = await readRosterFile(file, room);
       rows = rows.filter(row => row.some(value => String(value || "").trim()));
       if (!rows.length) throw new Error("ไฟล์ไม่มีข้อมูล");
-      const firstRow = rows[0].map(value => String(value || "").trim().toLowerCase());
-      if ((/รหัส|เลข|student\s*id|^id$/.test(firstRow[0]) || /student\s*id/.test(firstRow[0]))
-          && /ชื่อ|name/.test(firstRow[2])) rows = rows.slice(1);
+      const headerColumns = findRosterColumns(rows[0]);
+      const columns = headerColumns || { id: 0, number: 1, name: 2 };
+      if (headerColumns) rows = rows.slice(1);
       if (!rows.length) throw new Error("ไฟล์มีแต่หัวตาราง ไม่มีข้อมูลนักเรียน");
       if (rows.length > 2000) throw new Error("อัปโหลดได้ไม่เกิน 2,000 รายชื่อต่อห้อง");
       const students = [];
       const seenIds = new Set();
       for (const row of rows) {
-        const id = String(row[0] == null ? "" : row[0]).trim();
+        const id = String(row[columns.id] == null ? "" : row[columns.id]).trim();
         const normalizedId = id.replace(/\.0+$/, "");
-        const name = String(row[2] == null ? "" : row[2]).trim();
+        const name = String(row[columns.name] == null ? "" : row[columns.name]).trim();
         if (!normalizedId) throw new Error("พบแถวที่ไม่มีรหัสนักเรียน");
         if (!name) throw new Error(`ไม่พบชื่อ-นามสกุลของรหัส ${id}`);
         if (seenIds.has(normalizedId)) throw new Error(`พบรหัสนักเรียนซ้ำในไฟล์: ${id}`);
         seenIds.add(normalizedId);
         students.push({
           id: normalizedId,
-          number: String(row[1] == null ? "" : row[1]).trim(),
+          number: columns.number < 0 ? "" : String(row[columns.number] == null ? "" : row[columns.number]).trim(),
           name: name
         });
       }
       parsedRows = students;
       renderPreview(students);
-      document.getElementById("fileState").textContent = `${file.name} · ห้อง ${roomInput.value.trim()} · ${students.length} รายชื่อ`;
+      document.getElementById("fileState").textContent = `${file.name} · ${roomLabel(room)} · ${students.length} รายชื่อ`;
       return students;
     }
 
@@ -300,10 +477,11 @@
       let uploadCompleted = false;
       try {
         parsedRows = await prepareRoster();
+        const room = getUploadRoom();
         const rosterRows = parsedRows.map(student => [student.id, student.number, student.name, ""]);
         const jsonRows = JSON.stringify(rosterRows);
         if (new TextEncoder().encode(jsonRows).length > 500000) throw new Error("ข้อมูลรายชื่อมีขนาดใหญ่เกินกำหนด");
-        if (!window.confirm(`ยืนยันแทนที่รายชื่อเดิมของห้อง ${roomInput.value.trim()} ด้วยข้อมูล ${parsedRows.length} คน พร้อมภาพ QR Code หรือไม่?`)) {
+        if (!window.confirm(`ยืนยันนำเข้ารายชื่อ ${parsedRows.length} คนไปยัง${roomLabel(room)} หรือไม่? รายชื่อเดิมของห้องจะถูกแทนที่`)) {
           uploadStatus.textContent = "ยกเลิกการอัปโหลดแล้ว";
           return;
         }
@@ -316,7 +494,7 @@
         let data = await callScript({
           action: "upload-roster-start",
           uploadId: activeUploadId,
-          room: roomInput.value.trim(),
+          room: room,
           rows: jsonRows
         });
         if (!data.success) {
@@ -339,12 +517,15 @@
         data = await callScript({
           action: "upload-roster-finalize",
           uploadId: activeUploadId,
-          room: roomInput.value.trim()
+          room: room
         });
         if (!data.success) throw new Error(data.message || "บันทึกรายชื่อไม่สำเร็จ");
         uploadCompleted = true;
         uploadStarted = false;
         uploadStatus.textContent = `อัปโหลดสำเร็จ · ห้อง ${data.room} · ${data.count} รายชื่อ · สร้างภาพ QR ในชีต ${data.sheet} แล้ว`;
+        gradeFilter.value = normalizeRoom(data.room)[0] || "";
+        await loadManagedRooms(normalizeRoom(data.room));
+        await loadTeacherAssignments();
       } catch (error) {
         console.error("Unable to upload student roster:", error);
         uploadStatus.textContent = error.message || "อัปโหลดรายชื่อไม่สำเร็จ";
@@ -362,6 +543,379 @@
         uploadButton.disabled = false;
       }
     });
+
+    async function adminCall(action, parameters = {}) {
+      const data = await callScript({ action, ...parameters });
+      if (!data.success) throw new Error(data.message || "ดำเนินการไม่สำเร็จ");
+      return data;
+    }
+
+    function roomLabel(room) {
+      return `ม.${room[0]} ห้อง ${Number(room.slice(1))}`;
+    }
+
+    function setManagementStatus(message, isError = false) {
+      managementStatus.textContent = message;
+      managementStatus.style.color = isError ? "var(--red)" : "var(--amber)";
+    }
+
+    function addRoomOptions(select, rooms, includePlaceholder) {
+      select.replaceChildren();
+      if (includePlaceholder) {
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "เลือกห้องเรียน";
+        select.append(placeholder);
+      }
+      for (const room of rooms) {
+        const option = document.createElement("option");
+        option.value = room.room;
+        option.textContent = `${roomLabel(room.room)} · ${room.count} คน`;
+        select.append(option);
+      }
+    }
+
+    function refreshRoomOptions(preferredRoom = managedRoom.value) {
+      const grade = gradeFilter.value;
+      const filteredRooms = managedRooms.filter(room => !grade || room.grade === grade);
+      addRoomOptions(managedRoom, filteredRooms, true);
+      addRoomOptions(studentRoomInput, managedRooms, false);
+      if (filteredRooms.some(room => room.room === preferredRoom)) managedRoom.value = preferredRoom;
+      const hasRoom = Boolean(managedRoom.value);
+      document.getElementById("addStudentButton").disabled = !hasRoom;
+      document.getElementById("deleteRoomButton").disabled = !hasRoom;
+    }
+
+    async function loadManagedRooms(preferredRoom = managedRoom.value) {
+      const generation = ++roomLoadGeneration;
+      setManagementStatus("กำลังโหลดห้องเรียน…");
+      try {
+        const data = await adminCall("admin-roster-list");
+        if (generation !== roomLoadGeneration) return;
+        managedRooms = data.rooms;
+        refreshRoomOptions(preferredRoom);
+        if (managedRoom.value) {
+          await loadManagedStudents(managedRoom.value);
+        } else {
+          renderManagedStudents([]);
+          setManagementStatus(managedRooms.length ? "" : "ยังไม่มีห้องเรียน กรุณาสร้างห้องก่อน");
+        }
+      } catch (error) {
+        if (generation === roomLoadGeneration) setManagementStatus(error.message, true);
+      }
+    }
+
+    function showAssignmentStep(step) {
+      document.getElementById("assignmentStepGrade").hidden = step !== "grade";
+      document.getElementById("assignmentStepRoom").hidden = step !== "room";
+      document.getElementById("assignmentStepTeachers").hidden = step !== "teachers";
+    }
+
+    function renderAssignmentRooms() {
+      const container = document.getElementById("assignmentRoomChoices");
+      const grade = document.getElementById("assignmentGrade").value;
+      const rooms = assignmentRooms.filter(room => room.grade === grade);
+      container.replaceChildren();
+      document.getElementById("assignmentRoomNext").disabled = true;
+      selectedAssignmentRoom = "";
+      if (!rooms.length) {
+        const empty = document.createElement("p");
+        empty.className = "empty";
+        empty.textContent = `ยังไม่มีห้องในระดับ ม.${grade} กรุณาสร้างห้องจากส่วนเลือกชั้น/ห้องด้านบนก่อน`;
+        container.append(empty);
+        return;
+      }
+
+      for (const room of rooms) {
+        const button = document.createElement("button");
+        button.className = "room-choice";
+        button.type = "button";
+        button.textContent = `${roomLabel(room.room)} · ${room.classroom}`;
+        button.setAttribute("aria-pressed", "false");
+        button.addEventListener("click", () => {
+          selectedAssignmentRoom = room.room;
+          container.querySelectorAll(".room-choice").forEach(choice => {
+            choice.setAttribute("aria-pressed", String(choice === button));
+          });
+          document.getElementById("assignmentRoomNext").disabled = false;
+        });
+        container.append(button);
+      }
+    }
+
+    function renderAssignmentTeachers() {
+      const container = document.getElementById("assignmentTeacherChoices");
+      container.replaceChildren();
+      const eligibleTeachers = assignmentTeachers.filter(teacher =>
+        !normalizeRoom(teacher.room) || normalizeRoom(teacher.room) === selectedAssignmentRoom
+      );
+      const otherRoomCount = assignmentTeachers.length - eligibleTeachers.length;
+      if (assignmentSelectionRoom !== selectedAssignmentRoom) {
+        selectedAssignmentTeacherIds = new Set(eligibleTeachers
+          .filter(teacher => normalizeRoom(teacher.room) === selectedAssignmentRoom)
+          .map(teacher => teacher.id));
+        assignmentSelectionRoom = selectedAssignmentRoom;
+      }
+
+      const query = document.getElementById("assignmentTeacherSearch").value.trim().toLocaleLowerCase();
+      const visibleTeachers = eligibleTeachers.filter(teacher =>
+        `${teacher.name || ""} ${teacher.id}`.toLocaleLowerCase().includes(query)
+      );
+      document.getElementById("assignmentTeacherResultCount").textContent =
+        `แสดง ${visibleTeachers.length} จาก ${eligibleTeachers.length} คน · เลือกแล้ว ${selectedAssignmentTeacherIds.size} คน`;
+
+      if (!visibleTeachers.length) {
+        const empty = document.createElement("p");
+        empty.className = "empty";
+        empty.textContent = eligibleTeachers.length
+          ? "ไม่พบครูที่ตรงกับคำค้นหา"
+          : "ยังไม่มีครูที่สามารถมอบหมายให้ห้องนี้ได้";
+        container.append(empty);
+      }
+
+      for (const teacher of visibleTeachers) {
+        const label = document.createElement("label");
+        label.className = "teacher-choice";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = teacher.id;
+        checkbox.checked = selectedAssignmentTeacherIds.has(teacher.id);
+        checkbox.setAttribute("aria-label", `${teacher.name || "ครู"} ${teacher.id}`);
+        checkbox.addEventListener("change", () => {
+          if (checkbox.checked) selectedAssignmentTeacherIds.add(teacher.id);
+          else selectedAssignmentTeacherIds.delete(teacher.id);
+          document.getElementById("assignmentTeacherResultCount").textContent =
+            `แสดง ${visibleTeachers.length} จาก ${eligibleTeachers.length} คน · เลือกแล้ว ${selectedAssignmentTeacherIds.size} คน`;
+        });
+        const name = document.createElement("span");
+        name.textContent = teacher.name || `ครู ${teacher.id}`;
+        const id = document.createElement("small");
+        id.textContent = `รหัส ${teacher.id}`;
+        label.append(checkbox, name, id);
+        container.append(label);
+      }
+
+      if (otherRoomCount) {
+        const note = document.createElement("p");
+        note.className = "hint";
+        note.textContent = `ครูอีก ${otherRoomCount} คนถูกกำหนดให้ห้องอื่นแล้ว`;
+        container.append(note);
+      }
+      document.getElementById("assignmentTeacherTitle").textContent =
+        `ขั้นที่ 3: เลือกครูสำหรับ${roomLabel(selectedAssignmentRoom)}`;
+    }
+
+    async function loadTeacherAssignments() {
+      teacherAssignmentStatus.textContent = "กำลังโหลดข้อมูล…";
+      try {
+        const data = await adminCall("admin-teacher-list");
+        assignmentTeachers = data.teachers;
+        assignmentRooms = data.rooms;
+        teacherAssignmentStatus.textContent = `ครู ${assignmentTeachers.length} คน · ห้องทั้งหมด ${assignmentRooms.length} ห้อง`;
+        teacherAssignmentStatus.style.color = "var(--amber)";
+        document.getElementById("assignmentGradeNext").disabled = !document.getElementById("assignmentGrade").value;
+        renderAssignmentRooms();
+        return true;
+      } catch (error) {
+        teacherAssignmentStatus.textContent = error.message;
+        teacherAssignmentStatus.style.color = "var(--red)";
+        document.getElementById("assignmentGradeNext").disabled = true;
+        return false;
+      }
+    }
+
+    document.getElementById("assignmentGrade").addEventListener("change", event => {
+      document.getElementById("assignmentGradeNext").disabled = !event.currentTarget.value;
+    });
+    document.getElementById("assignmentGradeNext").addEventListener("click", () => {
+      renderAssignmentRooms();
+      showAssignmentStep("room");
+    });
+    document.getElementById("assignmentRoomBack").addEventListener("click", () => showAssignmentStep("grade"));
+    document.getElementById("assignmentRoomNext").addEventListener("click", () => {
+      if (!selectedAssignmentRoom) return;
+      renderAssignmentTeachers();
+      showAssignmentStep("teachers");
+    });
+    document.getElementById("assignmentTeacherSearch").addEventListener("input", renderAssignmentTeachers);
+    document.getElementById("assignmentTeacherBack").addEventListener("click", () => showAssignmentStep("room"));
+    document.getElementById("assignmentTeacherSave").addEventListener("click", async event => {
+      if (!selectedAssignmentRoom) return;
+      const teacherIds = [...selectedAssignmentTeacherIds];
+      if (!teacherIds.length && !window.confirm(`ยืนยันยกเลิกการมอบหมายครูทั้งหมดของ${roomLabel(selectedAssignmentRoom)}หรือไม่?`)) return;
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        await adminCall("admin-teachers-assign", {
+          room: selectedAssignmentRoom,
+          teacherIds: JSON.stringify(teacherIds)
+        });
+        await loadTeacherAssignments();
+        renderAssignmentTeachers();
+        teacherAssignmentStatus.textContent = `บันทึกครู ${teacherIds.length} คนให้${roomLabel(selectedAssignmentRoom)}แล้ว`;
+        teacherAssignmentStatus.style.color = "var(--amber)";
+      } catch (error) {
+        teacherAssignmentStatus.textContent = error.message;
+        teacherAssignmentStatus.style.color = "var(--red)";
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    function renderManagedStudents(students) {
+      managedStudentsBody.replaceChildren();
+      if (!students.length) {
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = 4;
+        cell.className = "empty";
+        cell.textContent = managedRoom.value ? "ยังไม่มีรายชื่อนักเรียนในห้องนี้" : "เลือกห้องเรียนเพื่อแสดงรายชื่อ";
+        row.append(cell);
+        managedStudentsBody.append(row);
+        return;
+      }
+
+      for (const student of students) {
+        const row = document.createElement("tr");
+        for (const value of [student.id, student.number, student.name]) {
+          const cell = document.createElement("td");
+          cell.textContent = value;
+          row.append(cell);
+        }
+        const actions = document.createElement("td");
+        actions.className = "student-actions";
+        const editButton = document.createElement("button");
+        editButton.className = "button button-small";
+        editButton.type = "button";
+        editButton.textContent = "แก้ไข";
+        editButton.addEventListener("click", () => openStudentForm(student));
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "button button-small button-danger";
+        deleteButton.type = "button";
+        deleteButton.textContent = "ลบ";
+        deleteButton.addEventListener("click", () => deleteStudent(student));
+        actions.append(editButton, deleteButton);
+        row.append(actions);
+        managedStudentsBody.append(row);
+      }
+    }
+
+    async function loadManagedStudents(room) {
+      if (!room) {
+        renderManagedStudents([]);
+        return;
+      }
+      const generation = ++roomLoadGeneration;
+      setManagementStatus("กำลังโหลดรายชื่อนักเรียน…");
+      try {
+        const data = await adminCall("admin-roster-list", { room });
+        if (generation !== roomLoadGeneration || room !== managedRoom.value) return;
+        renderManagedStudents(data.students);
+        setManagementStatus(`${roomLabel(room)} · ${data.students.length} คน`);
+      } catch (error) {
+        if (generation === roomLoadGeneration) setManagementStatus(error.message, true);
+      }
+    }
+
+    function openStudentForm(student = null) {
+      editingStudent = student ? { room: managedRoom.value, id: student.id } : null;
+      studentForm.reset();
+      document.getElementById("studentIdInput").value = student ? student.id : "";
+      document.getElementById("studentNumberInput").value = student ? student.number : "";
+      document.getElementById("studentNameInput").value = student ? student.name : "";
+      studentRoomInput.value = managedRoom.value;
+      studentForm.hidden = false;
+      document.getElementById("saveStudentButton").textContent = student ? "บันทึกการแก้ไข" : "เพิ่มนักเรียน";
+      document.getElementById("studentIdInput").focus();
+    }
+
+    document.getElementById("addStudentButton").addEventListener("click", () => openStudentForm());
+    document.getElementById("createUploadRoomButton").addEventListener("click", async event => {
+      const room = getUploadRoom();
+      if (!room) {
+        setManagementStatus("กรุณาเลือกระดับชั้นและระบุเลขห้อง 1–99", true);
+        return;
+      }
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        await adminCall("admin-room-create", { grade: room[0], classroom: room.slice(1) });
+        gradeFilter.value = room[0];
+        await loadManagedRooms(room);
+        await loadTeacherAssignments();
+        setManagementStatus(`สร้าง${roomLabel(room)}แล้ว`);
+      } catch (error) {
+        setManagementStatus(error.message, true);
+      } finally {
+        button.disabled = false;
+        updateSheetNamePreview();
+      }
+    });
+    document.getElementById("cancelStudentButton").addEventListener("click", () => {
+      studentForm.hidden = true;
+      editingStudent = null;
+    });
+    gradeFilter.addEventListener("change", () => {
+      refreshRoomOptions("");
+      renderManagedStudents([]);
+      setManagementStatus("");
+    });
+    managedRoom.addEventListener("change", () => {
+      refreshRoomOptions(managedRoom.value);
+      loadManagedStudents(managedRoom.value);
+    });
+    studentForm.addEventListener("submit", async event => {
+      event.preventDefault();
+      const saveButton = document.getElementById("saveStudentButton");
+      saveButton.disabled = true;
+      try {
+        const data = await adminCall("admin-student-save", {
+          sourceRoom: editingStudent ? editingStudent.room : "",
+          id: editingStudent ? editingStudent.id : "",
+          room: studentRoomInput.value,
+          studentId: document.getElementById("studentIdInput").value.trim(),
+          number: document.getElementById("studentNumberInput").value.trim(),
+          name: document.getElementById("studentNameInput").value.trim()
+        });
+        studentForm.hidden = true;
+        editingStudent = null;
+        gradeFilter.value = data.room[0];
+        await loadManagedRooms(data.room);
+        setManagementStatus("บันทึกข้อมูลนักเรียนและ QR Code แล้ว");
+      } catch (error) {
+        setManagementStatus(error.message, true);
+      } finally {
+        saveButton.disabled = false;
+      }
+    });
+
+    async function deleteStudent(student) {
+      if (!window.confirm(`ยืนยันลบ ${student.id} ${student.name} พร้อมประวัติเช็คชื่อทั้งหมดหรือไม่?`)) return;
+      try {
+        await adminCall("admin-student-delete", { room: managedRoom.value, id: student.id });
+        await loadManagedRooms(managedRoom.value);
+        setManagementStatus("ลบนักเรียนและประวัติเช็คชื่อแล้ว");
+      } catch (error) {
+        setManagementStatus(error.message, true);
+      }
+    }
+
+    document.getElementById("deleteRoomButton").addEventListener("click", async () => {
+      const room = managedRoom.value;
+      if (!room || !window.confirm(`ยืนยันลบ${roomLabel(room)} พร้อมรายชื่อนักเรียนและประวัติเช็คชื่อทั้งหมดหรือไม่? ข้อมูลครูจะไม่ถูกลบ`)) return;
+      try {
+        await adminCall("admin-room-delete", { room });
+        await loadManagedRooms("");
+        await loadTeacherAssignments();
+        setManagementStatus(`ลบ${roomLabel(room)}และประวัติเช็คชื่อแล้ว ข้อมูลครูยังคงอยู่`);
+      } catch (error) {
+        setManagementStatus(error.message, true);
+      }
+    });
+
+    updateSheetNamePreview();
+    loadManagedRooms("");
+    loadTeacherAssignments();
 
     document.getElementById("logoutButton").addEventListener("click", async () => {
       try {
