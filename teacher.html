@@ -160,16 +160,6 @@
         <div class="stat absent"><strong id="absentCount">0</strong><span>ขาด</span></div>
         <div class="stat"><strong id="uncheckedCount">0</strong><span>ยังไม่เช็คชื่อ</span></div>
       </div>
-      <label class="filter" for="statusFilter">แสดงรายชื่อตามสถานะ
-        <select id="statusFilter">
-          <option value="all">ทุกสถานะ</option>
-          <option value="มา">มา / ตรงเวลา</option>
-          <option value="สาย">สาย</option>
-          <option value="ลา">ลา</option>
-          <option value="ขาด">ขาด</option>
-          <option value="unchecked">ยังไม่เช็คชื่อ</option>
-        </select>
-      </label>
       <div class="table-wrap">
         <table>
           <thead><tr><th>เลขที่</th><th>ชื่อ - นามสกุล</th><th>สถานะ</th></tr></thead>
@@ -208,7 +198,6 @@
     const students = [];
     const statusOptions = ["มา", "สาย", "ลา", "ขาด"];
     const attendanceDate = document.getElementById("attendanceDate");
-    const statusFilter = document.getElementById("statusFilter");
     const saveNote = document.getElementById("saveNote");
     const qrDownloadButton = document.getElementById("qrDownloadButton");
     const qrSection = document.getElementById("qrSection");
@@ -522,8 +511,6 @@
         else if (student.status === "ลา") totals.leave += 1;
         else if (student.status === "ขาด") totals.absent += 1;
         else totals.unchecked += 1;
-        if (statusFilter.value !== "all"
-            && (statusFilter.value === "unchecked" ? Boolean(student.status) : student.status !== statusFilter.value)) continue;
         const row = document.createElement("tr");
         for (const value of [student.number, student.name]) {
 
@@ -557,9 +544,7 @@
         const row = document.createElement("tr");
         const cell = document.createElement("td");
         cell.colSpan = 3;
-        cell.textContent = loadingStudents ? "กำลังโหลดรายชื่อนักเรียน…" : students.length
-          ? "ไม่พบนักเรียนในสถานะที่เลือก"
-          : "ไม่พบรายชื่อนักเรียนในห้องนี้";
+        cell.textContent = loadingStudents ? "กำลังโหลดรายชื่อนักเรียน…" : "ไม่พบรายชื่อนักเรียนในห้องนี้";
         row.append(cell);
         body.append(row);
       }
@@ -570,8 +555,6 @@
       document.getElementById("absentCount").textContent = String(totals.absent);
       document.getElementById("uncheckedCount").textContent = String(totals.unchecked);
     }
-
-    statusFilter.addEventListener("change", renderStudents);
 
     async function saveStudentStatus(student, selectedStatus, picker) {
       if (student.status === selectedStatus) return;
