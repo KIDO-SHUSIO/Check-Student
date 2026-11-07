@@ -741,19 +741,25 @@
     document.getElementById("assignmentTeacherBack").addEventListener("click", () => showAssignmentStep("room"));
     document.getElementById("assignmentTeacherSave").addEventListener("click", async event => {
       if (!selectedAssignmentRoom) return;
+      const room = selectedAssignmentRoom;
       const teacherIds = [...selectedAssignmentTeacherIds];
-      if (!teacherIds.length && !window.confirm(`ยืนยันยกเลิกการมอบหมายครูทั้งหมดของ${roomLabel(selectedAssignmentRoom)}หรือไม่?`)) return;
+      if (!teacherIds.length && !window.confirm(`ยืนยันยกเลิกการมอบหมายครูทั้งหมดของ${roomLabel(room)}หรือไม่?`)) return;
       const button = event.currentTarget;
       button.disabled = true;
       try {
         await adminCall("admin-teachers-assign", {
-          room: selectedAssignmentRoom,
+          room,
           teacherIds: JSON.stringify(teacherIds)
         });
-        await loadTeacherAssignments();
-        renderAssignmentTeachers();
-        teacherAssignmentStatus.textContent = `บันทึกครู ${teacherIds.length} คนให้${roomLabel(selectedAssignmentRoom)}แล้ว`;
-        teacherAssignmentStatus.style.color = "var(--amber)";
+        const assignmentsLoaded = await loadTeacherAssignments();
+        showAssignmentStep("grade");
+        if (assignmentsLoaded) {
+          teacherAssignmentStatus.textContent = `บันทึกครู ${teacherIds.length} คนให้${roomLabel(room)}แล้ว`;
+          teacherAssignmentStatus.style.color = "var(--amber)";
+        } else {
+          teacherAssignmentStatus.textContent =
+            `บันทึกครู ${teacherIds.length} คนให้${roomLabel(room)}แล้ว แต่${teacherAssignmentStatus.textContent}`;
+        }
       } catch (error) {
         teacherAssignmentStatus.textContent = error.message;
         teacherAssignmentStatus.style.color = "var(--red)";
