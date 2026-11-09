@@ -42,6 +42,7 @@
     }
     button, input, select { font: inherit; }
     button { cursor: pointer; }
+    button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(37,99,235,.35); outline-offset: 2px; }
     .page { width: min(100%, 1180px); margin: 0 auto; }
     .header { position: relative; margin-bottom: 18px; padding: 4px 0 0; }
     .eyebrow { margin-bottom: 5px; color: var(--primary); font-size: 10px; font-weight: 700; letter-spacing: .12em; }
@@ -255,6 +256,25 @@
     .history-item.error .history-id { color: #b12d35; }
     .history-item.duplicate .history-id { color: #94620a; }
     .history-item.queued .history-id, .history-item.sending .history-id { color: #397fa9; }
+    .queue-notice { margin: 10px 0 0; padding: 10px 12px; border: 1px solid #f0d39a; border-radius: 10px; background: #fff8e9; color: #80550a; font-size: 11px; line-height: 1.6; }
+    .queue-notice button { margin-left: 8px; padding: 4px 9px; border: 1px solid #e6c982; border-radius: 7px; background: #fff; color: #80550a; font-weight: 600; }
+    .queue-notice[hidden] { display: none; }
+    .confirm-dialog { width: min(440px, calc(100% - 32px)); padding: 0; border: 1px solid var(--line); border-radius: 16px; background: #fff; color: var(--ink); box-shadow: 0 24px 70px rgba(15,23,42,.28); }
+    .confirm-dialog::backdrop { background: rgba(15,23,42,.52); backdrop-filter: blur(2px); }
+    .confirm-dialog-content { padding: 22px; }
+    .confirm-dialog-icon { display: grid; width: 42px; height: 42px; margin-bottom: 12px; place-items: center; border-radius: 50%; background: #fff7e8; color: var(--amber); font-size: 22px; font-weight: 700; }
+    .confirm-dialog h2 { margin: 0 0 7px; font-size: 18px; }
+    .confirm-dialog p { margin: 0; color: #607087; font-size: 13px; line-height: 1.65; }
+    .confirm-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+    .confirm-dialog-actions button { min-height: 40px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 9px; background: #fff; color: #52647a; font: inherit; font-weight: 600; cursor: pointer; }
+    .confirm-dialog-actions button:focus-visible { outline: 3px solid rgba(37,99,235,.35); outline-offset: 2px; }
+    .confirm-dialog-actions .confirm-danger { border-color: #b52e2b; background: #b52e2b; color: #fff; }
+    .confirm-dialog-actions .confirm-danger:hover { background: #962421; }
+    @media (max-width: 420px) {
+      .confirm-dialog-content { padding: 18px; }
+      .confirm-dialog-actions { flex-direction: column-reverse; }
+      .confirm-dialog-actions button { width: 100%; }
+    }
     @media (max-width: 760px) {
       body { padding: 18px 14px 28px; }
       .layout { grid-template-columns: 1fr; gap: 13px; }
@@ -373,6 +393,10 @@
             <div class="stat-tile"><strong id="unknownCount">0</strong><span>ไม่พบข้อมูล</span></div>
             <div class="stat-tile"><strong id="pendingCount">0</strong><span>รอส่ง</span></div>
           </div>
+          <p class="queue-notice" id="queueNotice" role="status" aria-live="polite" hidden>
+            <span id="queueNoticeText"></span>
+            <button id="retryQueueButton" type="button">ส่งคิวอีกครั้ง</button>
+          </p>
           <p class="history-note">รายการล่าสุดจะแสดงด้านล่าง · แสดงสูงสุด 100 รายการ</p>
           <div class="history" id="historyList" aria-live="polite">
             <div class="history-empty">ยังไม่มีรายการ · เปิดกล้องเพื่อเริ่มรับบัตร</div>
@@ -381,6 +405,18 @@
       </section>
     </div>
   </main>
+
+  <dialog class="confirm-dialog" id="logoutConfirmDialog" aria-labelledby="logoutConfirmTitle" aria-describedby="logoutConfirmMessage">
+    <div class="confirm-dialog-content">
+      <div class="confirm-dialog-icon" aria-hidden="true">!</div>
+      <h2 id="logoutConfirmTitle">ยังมีรายการรอส่ง</h2>
+      <p id="logoutConfirmMessage"></p>
+      <div class="confirm-dialog-actions">
+        <button id="cancelLogoutButton" type="button">กลับไปตรวจสอบ</button>
+        <button class="confirm-danger" id="confirmLogoutButton" type="button">ออกจากระบบ</button>
+      </div>
+    </div>
+  </dialog>
 
   <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzxa5QNwX-db99S_TxQi9I_GzKRRr9tREAVeXQTSOXJnVEO6xZ3QMLx2o2dsG6G9bdPCw/exec";
@@ -414,6 +450,7 @@
     const checkedStudentIds = new Set();
     let scanQueue = [];
     let retryTimer = 0;
+    let confirmedLogout = false;
 
     const elements = {
       alertBox: document.getElementById("alertBox"),
@@ -433,6 +470,11 @@
       autoExposureMode: document.getElementById("autoExposureMode"),
       manualExposureMode: document.getElementById("manualExposureMode")
     };
+    const queueNotice = document.getElementById("queueNotice");
+    const queueNoticeText = document.getElementById("queueNoticeText");
+    const retryQueueButton = document.getElementById("retryQueueButton");
+    const logoutConfirmDialog = document.getElementById("logoutConfirmDialog");
+    const logoutConfirmMessage = document.getElementById("logoutConfirmMessage");
     let cameraExposureMode = "auto";
     let exposureCompensationSlider = null;
     let supportsContinuousExposure = false;
@@ -448,14 +490,12 @@
     }
 
     async function logout() {
-      if (scanQueue.length && !window.confirm(`ยังมี ${scanQueue.length} รายการรอส่งอยู่ในเครื่องนี้ ข้อมูลจะถูกเก็บไว้และส่งเมื่อเข้าสู่ระบบอีกครั้ง ต้องการออกจากระบบหรือไม่?`)) {
-        return;
-      }
+      if (scanQueue.length && !(await confirmPendingQueueLogout())) return;
+      confirmedLogout = true;
       const token = authToken;
       authToken = null;
       try {
         window.sessionStorage.removeItem(AUTH_TOKEN_KEY);
-        window.sessionStorage.removeItem(AUTH_ROLE_KEY);
         window.sessionStorage.removeItem(AUTH_ROLE_KEY);
       } catch (error) {
         console.error("Unable to clear the login session:", error);
@@ -472,6 +512,17 @@
       } finally {
         window.location.replace("login.html");
       }
+    }
+
+    function confirmPendingQueueLogout() {
+      logoutConfirmMessage.textContent =
+        `ยังมี ${scanQueue.length} รายการรอส่งอยู่ในเครื่องนี้ ข้อมูลจะเก็บไว้ในเบราว์เซอร์เครื่องนี้ และจะส่งเมื่อเข้าสู่ระบบอีกครั้ง ต้องการออกจากระบบหรือไม่?`;
+      return new Promise(resolve => {
+        logoutConfirmDialog.addEventListener("close", () => {
+          resolve(logoutConfirmDialog.returnValue === "logout");
+        }, { once: true });
+        logoutConfirmDialog.showModal();
+      });
     }
 
     function updateAlert(type, title, text) {
@@ -515,6 +566,14 @@
       document.getElementById("duplicateCount").textContent = counts.duplicate;
       document.getElementById("unknownCount").textContent = counts.unknown;
       document.getElementById("pendingCount").textContent = scanQueue.length;
+      queueNotice.hidden = scanQueue.length === 0;
+      retryQueueButton.disabled = scanQueue.length === 0 || queueDrainRunning || !navigator.onLine;
+      if (scanQueue.length) {
+        const networkState = navigator.onLine
+          ? (queueDrainRunning ? "กำลังส่งคิว…" : "กดส่งคิวอีกครั้ง หรือระบบจะลองส่งให้อัตโนมัติ")
+          : "ออฟไลน์ · ระบบจะลองส่งอัตโนมัติเมื่อกลับมาออนไลน์";
+        queueNoticeText.textContent = `มี ${scanQueue.length} รายการรอส่ง ข้อมูลยังอยู่ในเบราว์เซอร์เครื่องนี้ กรุณาอย่าล้างข้อมูลเว็บไซต์หรือเปลี่ยนเครื่องก่อนส่งครบ · ${networkState}`;
+      }
     }
 
     function highlightSuccessfulScan(isSuccess) {
@@ -683,6 +742,7 @@
     async function drainScanQueue() {
       if (queueDrainRunning || !authToken || !scanQueue.length) return;
       queueDrainRunning = true;
+      renderCounts();
       try {
         while (scanQueue.length && authToken) {
           const entry = scanQueue[0];
@@ -767,6 +827,7 @@
         if (scanQueue.length === 0) updateAlert("success", "ส่งคิวครบแล้ว", "ทุกรายการในคิวได้รับคำตอบจากเซิร์ฟเวอร์แล้ว");
       } finally {
         queueDrainRunning = false;
+        renderCounts();
       }
     }
 
@@ -973,6 +1034,8 @@
       document.getElementById("barcodeMode").setAttribute("aria-pressed", "false");
     });
     document.getElementById("logoutButton").addEventListener("click", logout);
+    document.getElementById("cancelLogoutButton").addEventListener("click", () => logoutConfirmDialog.close("cancel"));
+    document.getElementById("confirmLogoutButton").addEventListener("click", () => logoutConfirmDialog.close("logout"));
     document.getElementById("barcodeMode").addEventListener("click", () => {
       document.getElementById("barcodeMode").classList.add("active");
       document.getElementById("barcodeMode").setAttribute("aria-pressed", "true");
@@ -1022,12 +1085,33 @@
       downloadFile("attendance.json", JSON.stringify({ counts, history }, null, 2), "application/json");
     });
     document.getElementById("exportCsv").addEventListener("click", () => {
-      const escapeCsv = value => `"${String(value).replaceAll('"', '""')}"`;
+      const escapeCsv = value => {
+        let text = String(value == null ? "" : value);
+        if (/^[\s]*[=+\-@]/.test(text)) text = `'${text}`;
+        return `"${text.replaceAll('"', '""')}"`;
+      };
       const rows = [["รหัส", "ผลลัพธ์", "ข้อความ", "เวลา"], ...history.map(item => [item.id, item.result, item.message, item.time])];
       downloadFile("attendance.csv", `\uFEFF${rows.map(row => row.map(escapeCsv).join(",")).join("\r\n")}`, "text/csv;charset=utf-8");
     });
+    retryQueueButton.addEventListener("click", () => {
+      if (retryTimer) window.clearTimeout(retryTimer);
+      retryTimer = 0;
+      drainScanQueue();
+    });
+    window.addEventListener("beforeunload", event => {
+      if (!confirmedLogout && scanQueue.length) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    });
+    window.addEventListener("offline", () => {
+      renderCounts();
+      if (scanQueue.length) updateAlert("wait", "ออฟไลน์", `${scanQueue.length} รายการยังอยู่ในเครื่องและจะส่งเมื่อกลับมาออนไลน์`);
+    });
     window.addEventListener("online", () => {
       if (retryTimer) window.clearTimeout(retryTimer);
+      retryTimer = 0;
+      renderCounts();
       drainScanQueue();
     });
     restoreScanQueue();

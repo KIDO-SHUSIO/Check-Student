@@ -13,6 +13,7 @@
     * { box-sizing: border-box; }
     body { margin: 0; padding: 24px 20px; background: var(--page); color: var(--ink); font-family: 'Sarabun', sans-serif; font-size: 14px; }
     button, input { font: inherit; }
+    button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid rgba(52,125,175,.35); outline-offset: 2px; }
     .page { width: min(100%, 1020px); margin: 0 auto; }
     .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
     .eyebrow { color: var(--primary); font-size: 10px; font-weight: 700; letter-spacing: .06em; }
@@ -42,6 +43,13 @@
     tr.late-critical > td { background: #fde2e1; color: #9d201c; }
     tfoot td { border-top: 2px solid var(--line); font-weight: 700; }
     .empty { padding: 18px 8px; color: var(--muted); text-align: center; }
+    @media print {
+      body { padding: 0; background: #fff; }
+      .header .actions, .controls, #exportReportButton { display: none !important; }
+      .card { padding: 0; border: 0; }
+      .table-wrap { overflow: visible; }
+      table { min-width: 0; }
+    }
     [hidden] { display: none !important; }
     @media (max-width: 620px) {
       body { padding: 16px 14px 28px; font-size: 16px; }
@@ -87,6 +95,7 @@
           <input id="endDate" type="date">
         </label>
         <button class="button button-primary" id="loadReportButton" type="button">แสดงตาราง</button>
+        <button class="button" id="exportReportButton" type="button" disabled>ดาวน์โหลด CSV</button>
       </div>
       <p class="status" id="reportStatus" role="status" aria-live="polite"></p>
       <div class="table-wrap">
@@ -116,21 +125,42 @@
     const reportStatus = document.getElementById("reportStatus");
     const reportRows = document.getElementById("reportRows");
     let requestGeneration = 0;
+    let currentReport = null;
 
     function localDateValue() {
       const now = new Date();
       return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     }
 
+    function updateDateRange() {
+      requestGeneration += 1;
+      const invalidOrder = startDate.value && endDate.value && startDate.value > endDate.value;
+      startDate.max = endDate.value || "";
+      endDate.min = startDate.value || "";
+      document.getElementById("loadReportButton").disabled = Boolean(invalidOrder || !startDate.value || !endDate.value);
+      document.getElementById("exportReportButton").disabled = true;
+      currentReport = null;
+      reportRows.replaceChildren();
+      reportStatus.textContent = invalidOrder
+        ? "วันที่เริ่มต้นต้องไม่อยู่หลังวันที่สิ้นสุด"
+        : !startDate.value || !endDate.value
+          ? "กรุณาเลือกช่วงวันที่ให้ถูกต้อง"
+          : "กดแสดงตารางเพื่อโหลดรายงานตามช่วงวันที่ใหม่";
+    }
+
     async function loadReport() {
       if (!startDate.value || !endDate.value || startDate.value > endDate.value) {
-        reportStatus.textContent = "กรุณาเลือกช่วงวันที่ให้ถูกต้อง";
+        reportStatus.textContent = startDate.value && endDate.value && startDate.value > endDate.value
+          ? "วันที่เริ่มต้นต้องไม่อยู่หลังวันที่สิ้นสุด"
+          : "กรุณาเลือกช่วงวันที่ให้ถูกต้อง";
         return;
       }
 
       const generation = ++requestGeneration;
       const button = document.getElementById("loadReportButton");
       button.disabled = true;
+      document.getElementById("exportReportButton").disabled = true;
+      currentReport = null;
       reportRows.replaceChildren();
       reportStatus.textContent = "กำลังโหลดสรุปจำนวนครั้ง…";
       try {
@@ -156,6 +186,13 @@
         if (!data.success || !Array.isArray(data.students)) {
           throw new Error(data.message || "โหลดสรุปจำนวนครั้งไม่สำเร็จ");
         }
+        currentReport = {
+          room: data.room || "",
+          startDate: data.startDate,
+          endDate: data.endDate,
+          students: data.students
+        };
+        document.getElementById("exportReportButton").disabled = data.students.length === 0;
 
         document.getElementById("roomTitle").textContent = data.room
           ? `สรุปห้อง ม. ${data.room}`
@@ -187,20 +224,61 @@
           row.append(cell);
           reportRows.append(row);
         }
-        reportStatus.textContent = `${data.startDate} ถึง ${data.endDate} · ${data.students.length} คน`;
+        const totals = data.students.reduce((sum, student) => {
+          for (const status of ["มา", "สาย", "ลา", "ขาด"]) {
+            sum[status] += Number(student.counts && student.counts[status]) || 0;
+          }
+          return sum;
+        }, { มา: 0, สาย: 0, ลา: 0, ขาด: 0 });
+        reportStatus.textContent =
+          `${data.startDate} ถึง ${data.endDate} · ${data.students.length} คน · มา ${totals["มา"]} / สาย ${totals["สาย"]} / ลา ${totals["ลา"]} / ขาด ${totals["ขาด"]}`;
       } catch (error) {
         if (generation !== requestGeneration) return;
         console.error("Unable to load attendance count report:", error);
+        currentReport = null;
+        document.getElementById("exportReportButton").disabled = true;
         reportStatus.textContent = error.message || "โหลดสรุปจำนวนครั้งไม่สำเร็จ";
       } finally {
         if (generation === requestGeneration) button.disabled = false;
       }
     }
 
+    function exportReportCsv() {
+      if (!currentReport) return;
+      const csvCell = value => {
+        let text = String(value == null ? "" : value);
+        if (/^[\s]*[=+\-@]/.test(text)) text = `'${text}`;
+        return `"${text.replaceAll('"', '""')}"`;
+      };
+      const rows = [
+        ["เลขที่", "ชื่อ-นามสกุล", "รหัสนักเรียน", "มา/ตรงเวลา", "สาย", "ลา", "ขาด"],
+        ...currentReport.students.map(student => [
+          student.number || "", student.name || "", student.id || "",
+          ...["มา", "สาย", "ลา", "ขาด"].map(status => Number(student.counts && student.counts[status]) || 0)
+        ])
+      ];
+      const blob = new Blob(
+        [`\uFEFF${rows.map(row => row.map(csvCell).join(",")).join("\r\n")}`],
+        { type: "text/csv;charset=utf-8" }
+      );
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `สรุปเข้าเรียน_${currentReport.room}_${currentReport.startDate}_${currentReport.endDate}.csv`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
     const today = localDateValue();
     endDate.value = today;
     startDate.value = `${today.slice(0, 7)}-01`;
+    startDate.max = today;
+    endDate.min = startDate.value;
+    for (const input of [startDate, endDate]) input.addEventListener("change", updateDateRange);
     document.getElementById("loadReportButton").addEventListener("click", loadReport);
+    document.getElementById("exportReportButton").addEventListener("click", exportReportCsv);
     loadReport();
 
     document.getElementById("logoutButton").addEventListener("click", async () => {

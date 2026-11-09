@@ -13,6 +13,7 @@
     * { box-sizing: border-box; }
     body { margin: 0; padding: 24px 20px; background: var(--page); color: var(--ink); font-family: 'Sarabun', sans-serif; font-size: 14px; }
     button, input, select { font: inherit; }
+    button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(52,125,175,.35); outline-offset: 2px; }
     .page { width: min(100%, 1020px); margin: 0 auto; }
     .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
     .eyebrow { color: var(--primary); font-size: 10px; font-weight: 700; letter-spacing: .06em; }
@@ -51,6 +52,11 @@
     .status-option[aria-pressed="true"][data-status="ขาด"] { border-color: #efb9b6; background: #fff0ef; color: var(--red); font-weight: 700; }
     .status-label { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; }
     .demo { color: var(--muted); font-size: 10px; }
+    .student-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; }
+    .student-filters input { flex: 1 1 220px; min-width: 0; }
+    .student-filters select { flex: 0 1 180px; }
+    .filter-result { margin: 0 0 8px; color: var(--muted); font-size: 10px; }
+    .save-note button { margin-left: 8px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--primary-dark); cursor: pointer; }
     .save-note { margin: 10px 0 0; color: var(--muted); font-size: 10px; }
     .qr-section { margin-top: 14px; }
     .qr-toolbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
@@ -82,6 +88,9 @@
       input, select { width: 100%; min-height: 46px; padding: 9px 10px; border-radius: 10px; font-size: 16px; }
       #teacherRoom { font-size: 16px; color: var(--ink); }
       .demo { flex: 1 0 100%; font-size: 13px; }
+      .student-filters { display: grid; grid-template-columns: 1fr; gap: 8px; }
+      .student-filters input, .student-filters select { min-height: 46px; font-size: 16px; }
+      .filter-result { font-size: 13px; }
       .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 15px; }
       .stat { min-height: 76px; padding: 11px; border-radius: 11px; }
       .stat strong { font-size: 25px; }
@@ -160,13 +169,32 @@
         <div class="stat absent"><strong id="absentCount">0</strong><span>ขาด</span></div>
         <div class="stat"><strong id="uncheckedCount">0</strong><span>ยังไม่เช็คชื่อ</span></div>
       </div>
+      <div class="student-filters">
+        <label class="filter" for="studentSearch">ค้นหานักเรียน
+          <input id="studentSearch" type="search" autocomplete="off" placeholder="ค้นหาด้วยชื่อ เลขที่ หรือรหัส">
+        </label>
+        <label class="filter" for="studentStatusFilter">กรองตามสถานะ
+          <select id="studentStatusFilter">
+            <option value="">ทุกสถานะ</option>
+            <option value="__unchecked">ยังไม่เช็คชื่อ</option>
+            <option value="มา">มา / ตรงเวลา</option>
+            <option value="สาย">สาย</option>
+            <option value="ลา">ลา</option>
+            <option value="ขาด">ขาด</option>
+          </select>
+        </label>
+      </div>
+      <p class="filter-result" id="filterResult" aria-live="polite"></p>
       <div class="table-wrap">
         <table>
           <thead><tr><th>เลขที่</th><th>ชื่อ - นามสกุล</th><th>สถานะ</th></tr></thead>
           <tbody id="studentRows"></tbody>
         </table>
       </div>
-      <p class="save-note" id="saveNote" role="status" aria-live="polite">สถานะจะบันทึกลงชีต Attendance เมื่อเลือก</p>
+      <p class="save-note" id="saveNote" role="status" aria-live="polite">
+        <span id="saveMessage">สถานะจะบันทึกลงชีต Attendance เมื่อเลือก</span>
+        <button id="undoStatusButton" type="button" hidden>ย้อนการแก้ไขล่าสุด</button>
+      </p>
     </section>
 
     <section class="card qr-section" id="qrSection" aria-label="บัตร QR นักเรียน" hidden>
@@ -193,20 +221,28 @@
     try {
       token = sessionStorage.getItem(AUTH_TOKEN_KEY);
       if (!token || sessionStorage.getItem(AUTH_ROLE_KEY) !== "teacher") location.replace("login.html");
-    } catch (error) { console.error("Unable to read login session:", error); }
+    } catch (error) {
+      console.error("Unable to read login session:", error);
+      location.replace("login.html");
+    }
 
     const students = [];
     const statusOptions = ["มา", "สาย", "ลา", "ขาด"];
     const attendanceDate = document.getElementById("attendanceDate");
-    const saveNote = document.getElementById("saveNote");
     const qrDownloadButton = document.getElementById("qrDownloadButton");
     const qrSection = document.getElementById("qrSection");
     const qrGrid = document.getElementById("qrGrid");
     const qrStatus = document.getElementById("qrStatus");
+    const studentSearch = document.getElementById("studentSearch");
+    const studentStatusFilter = document.getElementById("studentStatusFilter");
+    const saveMessage = document.getElementById("saveMessage");
+    const undoStatusButton = document.getElementById("undoStatusButton");
     let qrStudents = [];
     let qrRoom = "";
     let loadingStudents = true;
     let loadGeneration = 0;
+    const savingStudentIds = new Set();
+    let lastStatusChange = null;
 
     function localDateValue() {
       const now = new Date();
@@ -228,11 +264,13 @@
       loadingStudents = true;
       students.splice(0);
       renderStudents();
-      saveNote.textContent = "กำลังโหลดรายชื่อ…";
+      undoStatusButton.hidden = true;
+      lastStatusChange = null;
+      saveMessage.textContent = "กำลังโหลดรายชื่อ…";
       try {
         const data = await callScript({ action: "teacher-attendance", date: attendanceDate.value });
         if (generation !== loadGeneration) return;
-        if (data.code === "AUTH_REQUIRED") {
+        if (data.code === "AUTH_REQUIRED" || data.code === "FORBIDDEN") {
           sessionStorage.removeItem(AUTH_TOKEN_KEY);
           sessionStorage.removeItem(AUTH_ROLE_KEY);
           location.replace("login.html?expired=1");
@@ -247,10 +285,10 @@
         qrDownloadButton.disabled = !data.room;
         if (data.room) {
           document.getElementById("notice").textContent = `กำลังดูรายชื่อห้อง ม. ${data.room} · ข้อมูลจากชีต ม.${data.room.replace(/\D/g, "")}`;
-          saveNote.textContent = "สถานะจะบันทึกลงชีต Attendance เมื่อเลือก";
+          saveMessage.textContent = "สถานะจะบันทึกลงชีต Attendance เมื่อเลือก";
         } else {
           document.getElementById("notice").textContent = data.message || "บัญชีครูนี้ยังไม่ได้รับมอบหมายห้องเรียน กรุณาติดต่อผู้ดูแลระบบ";
-          saveNote.textContent = "ยังไม่มีห้องเรียนที่ได้รับมอบหมาย";
+          saveMessage.textContent = "ยังไม่มีห้องเรียนที่ได้รับมอบหมาย";
         }
         loadingStudents = false;
         renderStudents();
@@ -258,7 +296,7 @@
         if (generation !== loadGeneration) return;
         console.error("Unable to load teacher attendance:", error);
         document.getElementById("notice").textContent = error.message || "โหลดรายชื่อนักเรียนไม่สำเร็จ";
-        saveNote.textContent = "ตรวจสอบชีต Teacher, ชีตประจำห้อง และชีต Attendance ใน Google Sheet";
+        saveMessage.textContent = "ตรวจสอบชีต Teacher, ชีตประจำห้อง และชีต Attendance ใน Google Sheet";
         loadingStudents = false;
         renderStudents();
       }
@@ -317,7 +355,7 @@
       qrStatus.textContent = "กำลังโหลด QR Code ของห้องเรียน…";
       try {
         const data = await callScript({ action: "teacher-qr-codes" });
-        if (data.code === "AUTH_REQUIRED") {
+        if (data.code === "AUTH_REQUIRED" || data.code === "FORBIDDEN") {
           sessionStorage.removeItem(AUTH_TOKEN_KEY);
           sessionStorage.removeItem(AUTH_ROLE_KEY);
           location.replace("login.html?expired=1");
@@ -480,11 +518,14 @@
 
     async function downloadAllQrCards() {
       const button = document.getElementById("downloadAllQrButton");
+      if (qrStudents.length > 50
+          && !window.confirm(`กำลังสร้างบัตร QR จำนวน ${qrStudents.length} ใบ ซึ่งอาจใช้เวลาและหน่วยความจำมาก ต้องการดำเนินการต่อหรือไม่?`)) return;
       button.disabled = true;
-      qrStatus.textContent = "กำลังสร้างรูปบัตรและรวมไฟล์ ZIP…";
+      qrStatus.textContent = `กำลังเตรียมบัตร 0 / ${qrStudents.length}…`;
       try {
         const files = [];
         for (const student of qrStudents) {
+          qrStatus.textContent = `กำลังสร้างบัตร ${files.length + 1} / ${qrStudents.length}…`;
           const blob = await createStudentCardBlob(student, qrRoom);
           files.push({
             name: studentCardFilename(student),
@@ -511,6 +552,19 @@
         else if (student.status === "ลา") totals.leave += 1;
         else if (student.status === "ขาด") totals.absent += 1;
         else totals.unchecked += 1;
+      }
+      const query = studentSearch.value.trim().toLocaleLowerCase();
+      const selectedStatus = studentStatusFilter.value;
+      const visibleStudents = students.filter(student => {
+        const searchableText = `${student.number || ""} ${student.name || ""} ${student.id || ""}`.toLocaleLowerCase();
+        const matchesSearch = !query || searchableText.includes(query);
+        const matchesStatus = !selectedStatus
+          || (selectedStatus === "__unchecked" ? !student.status : student.status === selectedStatus);
+        return matchesSearch && matchesStatus;
+      });
+      document.getElementById("filterResult").textContent =
+        `แสดง ${visibleStudents.length} จาก ${students.length} คน`;
+      for (const student of visibleStudents) {
         const row = document.createElement("tr");
         for (const value of [student.number, student.name]) {
 
@@ -530,6 +584,7 @@
           button.dataset.status = status;
           button.textContent = status;
           button.setAttribute("aria-pressed", String(student.status === status));
+          button.disabled = savingStudentIds.has(student.id);
           button.addEventListener("click", () => saveStudentStatus(student, status, picker));
           picker.append(button);
         }
@@ -544,7 +599,9 @@
         const row = document.createElement("tr");
         const cell = document.createElement("td");
         cell.colSpan = 3;
-        cell.textContent = loadingStudents ? "กำลังโหลดรายชื่อนักเรียน…" : "ไม่พบรายชื่อนักเรียนในห้องนี้";
+        cell.textContent = loadingStudents
+          ? "กำลังโหลดรายชื่อนักเรียน…"
+          : students.length ? "ไม่พบนักเรียนตามตัวกรอง" : "ไม่พบรายชื่อนักเรียนในห้องนี้";
         row.append(cell);
         body.append(row);
       }
@@ -556,37 +613,62 @@
       document.getElementById("uncheckedCount").textContent = String(totals.unchecked);
     }
 
-    async function saveStudentStatus(student, selectedStatus, picker) {
-      if (student.status === selectedStatus) return;
+    async function saveStudentStatus(student, selectedStatus, picker, recordUndo = true) {
+      if (student.status === selectedStatus || savingStudentIds.has(student.id)) return;
       const previousStatus = student.status;
-      picker.querySelectorAll("button").forEach(button => { button.disabled = true; });
-      saveNote.textContent = `กำลังบันทึกสถานะ ${student.name}…`;
+      const selectedDate = attendanceDate.value;
+      undoStatusButton.hidden = true;
+      lastStatusChange = null;
+      savingStudentIds.add(student.id);
+      if (picker) picker.querySelectorAll("button").forEach(button => { button.disabled = true; });
+      saveMessage.textContent = `กำลังบันทึกสถานะ ${student.name}…`;
       try {
         const data = await callScript({
           action: "set-status",
-          date: attendanceDate.value,
+          date: selectedDate,
           studentId: student.id,
           status: selectedStatus
         });
-        if (data.code === "AUTH_REQUIRED") {
+        if (data.code === "AUTH_REQUIRED" || data.code === "FORBIDDEN") {
           sessionStorage.removeItem(AUTH_TOKEN_KEY);
           sessionStorage.removeItem(AUTH_ROLE_KEY);
           location.replace("login.html?expired=1");
           return;
         }
         if (!data.success) throw new Error(data.message || "บันทึกสถานะไม่สำเร็จ");
-        student.status = selectedStatus;
-        saveNote.textContent = `บันทึกสถานะ ${student.name} เป็น “${selectedStatus}” แล้ว`;
+        if (attendanceDate.value === selectedDate && students.includes(student)) {
+          student.status = selectedStatus;
+          saveMessage.textContent = `บันทึกสถานะ ${student.name} เป็น “${selectedStatus}” แล้ว`;
+          if (recordUndo && previousStatus) {
+            lastStatusChange = { student, status: previousStatus, date: selectedDate };
+            undoStatusButton.hidden = false;
+          }
+        }
       } catch (error) {
         console.error("Unable to save student attendance:", error);
-        student.status = previousStatus;
-        saveNote.textContent = error.message || "บันทึกสถานะไม่สำเร็จ";
+        if (attendanceDate.value === selectedDate && students.includes(student)) {
+          student.status = previousStatus;
+          saveMessage.textContent = error.message || "บันทึกสถานะไม่สำเร็จ";
+        }
+      } finally {
+        savingStudentIds.delete(student.id);
+        renderStudents();
       }
-      renderStudents();
     }
 
     attendanceDate.value = localDateValue();
-    attendanceDate.addEventListener("change", loadStudents);
+    studentSearch.addEventListener("input", renderStudents);
+    studentStatusFilter.addEventListener("change", renderStudents);
+    undoStatusButton.addEventListener("click", () => {
+      if (!lastStatusChange || lastStatusChange.date !== attendanceDate.value) return;
+      const { student, status } = lastStatusChange;
+      saveStudentStatus(student, status, null, false);
+    });
+    attendanceDate.addEventListener("change", () => {
+      undoStatusButton.hidden = true;
+      lastStatusChange = null;
+      loadStudents();
+    });
     qrDownloadButton.addEventListener("click", loadQrCards);
     document.getElementById("downloadAllQrButton").addEventListener("click", downloadAllQrCards);
     document.getElementById("printQrButton").addEventListener("click", () => {

@@ -14,6 +14,7 @@
     * { box-sizing: border-box; }
     body { margin: 0; padding: 24px 20px; background: var(--page); color: var(--ink); font-family: 'Sarabun', sans-serif; font-size: 14px; }
     button, input, select { font: inherit; }
+    button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(52,125,175,.35); outline-offset: 2px; }
     .page { width: min(100%, 760px); margin: 0 auto; }
     .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
     .header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -160,12 +161,15 @@
         </div>
         <p class="hint" id="sheetNamePreview">ชื่อแท็บชีตหลังอัปโหลด: กรุณาระบุชั้น/ห้อง</p>
         <button class="button" id="createUploadRoomButton" type="button">สร้างห้องเปล่าตามชั้น/ห้องที่เลือก</button>
+        <button class="button" id="downloadRosterTemplateButton" type="button">ดาวน์โหลดไฟล์ตัวอย่าง CSV</button>
         <label class="field" for="studentFile">ไฟล์รายชื่อนักเรียน (CSV / Excel)
           <input class="file-input" id="studentFile" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" required>
         </label>
-        <p class="hint">ต้องมีคอลัมน์รหัสนักเรียน/เลขประจำตัวและชื่อ-นามสกุล ระบบอ่านตามหัวตารางได้แม้สลับลำดับคอลัมน์ (หากไม่มีหัวตาราง ใช้ A=รหัส · B=เลขที่ · C=ชื่อ)</p>
+        <p class="hint">ต้องมีคอลัมน์รหัสนักเรียน/เลขประจำตัวและชื่อ-นามสกุล ระบบอ่านตามหัวตารางได้แม้สลับลำดับคอลัมน์ (หากไม่มีหัวตาราง ใช้ A=รหัส · B=เลขที่ · C=ชื่อ) หากใช้ Excel ให้ตั้งคอลัมน์รหัสเป็นข้อความ เพื่อรักษาเลข 0 ด้านหน้า</p>
         <div class="warning">การอัปโหลดจะแทนที่รายชื่อเดิมของห้องที่เลือกทั้งหมด แต่ประวัติการเช็คชื่อในชีต Attendance จะยังคงอยู่</div>
         <p class="file-state" id="fileState">ยังไม่ได้เลือกไฟล์</p>
+        <p class="hint" id="rosterDiffSummary" hidden></p>
+        <button class="button" id="downloadCurrentRosterButton" type="button" hidden>ดาวน์โหลดสำรองรายชื่อเดิม CSV</button>
         <button class="button button-primary" id="uploadButton" type="submit">ตรวจสอบและอัปโหลดรายชื่อ</button>
       </form>
       <p class="status" id="uploadStatus" role="status" aria-live="polite"></p>
@@ -276,6 +280,8 @@
     }
 
     let parsedRows = null;
+    let currentRosterForBackup = [];
+    let currentRosterDiff = null;
     let activeUploadId = null;
     let managedRooms = [];
     let roomLoadGeneration = 0;
@@ -299,8 +305,80 @@
     const managementStatus = document.getElementById("managementStatus");
     const teacherAssignmentStatus = document.getElementById("teacherAssignmentStatus");
 
-    uploadGrade.addEventListener("change", updateSheetNamePreview);
-    uploadClassroom.addEventListener("input", updateSheetNamePreview);
+    function clearRosterPreview(message = "ตัวอย่างรายชื่อจะแสดงที่นี่ก่อนอัปโหลด") {
+      previewBody.replaceChildren();
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 4;
+      cell.className = "empty";
+      cell.textContent = message;
+      row.append(cell);
+      previewBody.append(row);
+    }
+
+    function invalidateRosterPreview() {
+      if (!parsedRows) return;
+      parsedRows = null;
+      currentRosterForBackup = [];
+      currentRosterDiff = null;
+      document.getElementById("rosterDiffSummary").hidden = true;
+      document.getElementById("downloadCurrentRosterButton").hidden = true;
+      clearRosterPreview("รายละเอียดไฟล์หรือห้องเปลี่ยนแล้ว กดตรวจสอบอีกครั้ง");
+      document.getElementById("fileState").textContent = studentFile.files[0]
+        ? `${studentFile.files[0].name} · กดปุ่มเพื่อตรวจสอบตัวอย่างก่อนอัปโหลด`
+        : "ยังไม่ได้เลือกไฟล์";
+      uploadStatus.textContent = "";
+    }
+
+    uploadGrade.addEventListener("change", () => {
+      invalidateRosterPreview();
+      updateSheetNamePreview();
+    });
+    uploadClassroom.addEventListener("input", () => {
+      invalidateRosterPreview();
+      updateSheetNamePreview();
+    });
+
+    function downloadRosterCsv(students, filename) {
+      const csvCell = value => {
+        let text = String(value == null ? "" : value);
+        if (/^[\s]*[=+\-@]/.test(text)) text = `'${text}`;
+        return `"${text.replaceAll('"', '""')}"`;
+      };
+      const rows = [
+        ["รหัสนักเรียน", "เลขที่", "ชื่อ-นามสกุล"],
+        ...students.map(student => [student.id, student.number, student.name])
+      ];
+      const blob = new Blob(
+        [`\uFEFF${rows.map(row => row.map(csvCell).join(",")).join("\r\n")}`],
+        { type: "text/csv;charset=utf-8" }
+      );
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    document.getElementById("downloadCurrentRosterButton").addEventListener("click", () => {
+      if (currentRosterForBackup.length) {
+        downloadRosterCsv(currentRosterForBackup, `สำรองรายชื่อนักเรียน_${getUploadRoom()}.csv`);
+      }
+    });
+
+    document.getElementById("downloadRosterTemplateButton").addEventListener("click", () => {
+      const csv = "\uFEFFรหัสนักเรียน,เลขที่,ชื่อ-นามสกุล\r\n,,";
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "ตัวอย่างรายชื่อนักเรียน.csv";
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
 
     function normalizeRoom(value) {
       return String(value || "").replace(/\D/g, "");
@@ -457,6 +535,26 @@
           name: name
         });
       }
+      const roomList = await adminCall("admin-roster-list");
+      const roomExists = roomList.rooms.some(item => item.room === room);
+      const existingStudents = roomExists
+        ? (await adminCall("admin-roster-list", { room })).students
+        : [];
+      const incomingById = new Map(students.map(student => [student.id, student]));
+      const existingById = new Map(existingStudents.map(student => [student.id, student]));
+      const addedCount = students.filter(student => !existingById.has(student.id)).length;
+      const removedCount = existingStudents.filter(student => !incomingById.has(student.id)).length;
+      const changedCount = existingStudents.filter(student => {
+        const incoming = incomingById.get(student.id);
+        return incoming && (incoming.number !== student.number || incoming.name !== student.name);
+      }).length;
+      currentRosterForBackup = existingStudents;
+      currentRosterDiff = { existingCount: existingStudents.length, addedCount, removedCount, changedCount };
+      const diffSummary = document.getElementById("rosterDiffSummary");
+      diffSummary.textContent =
+        `รายชื่อเดิม ${existingStudents.length} คน · เพิ่ม ${addedCount} · ลบ ${removedCount} · เปลี่ยนชื่อ/เลขที่ ${changedCount}`;
+      diffSummary.hidden = false;
+      document.getElementById("downloadCurrentRosterButton").hidden = existingStudents.length === 0;
       parsedRows = students;
       renderPreview(students);
       document.getElementById("fileState").textContent = `${file.name} · ${roomLabel(room)} · ${students.length} รายชื่อ`;
@@ -465,6 +563,11 @@
 
     studentFile.addEventListener("change", () => {
       parsedRows = null;
+      currentRosterForBackup = [];
+      currentRosterDiff = null;
+      document.getElementById("rosterDiffSummary").hidden = true;
+      document.getElementById("downloadCurrentRosterButton").hidden = true;
+      clearRosterPreview();
       const file = studentFile.files[0];
       document.getElementById("fileState").textContent = file ? `${file.name} · กดปุ่มเพื่อตรวจสอบตัวอย่างก่อนอัปโหลด` : "ยังไม่ได้เลือกไฟล์";
       uploadStatus.textContent = "";
@@ -472,16 +575,26 @@
 
     document.getElementById("uploadForm").addEventListener("submit", async event => {
       event.preventDefault();
-      uploadButton.disabled = true;
+      const uploadControls = [...event.currentTarget.querySelectorAll("input, select, button")];
+      const previouslyDisabled = uploadControls.map(control => control.disabled);
+      uploadControls.forEach(control => { control.disabled = true; });
       let uploadStarted = false;
       let uploadCompleted = false;
       try {
+        uploadStatus.textContent = "กำลังตรวจสอบไฟล์และเปรียบเทียบกับรายชื่อเดิม…";
         parsedRows = await prepareRoster();
         const room = getUploadRoom();
         const rosterRows = parsedRows.map(student => [student.id, student.number, student.name, ""]);
         const jsonRows = JSON.stringify(rosterRows);
         if (new TextEncoder().encode(jsonRows).length > 500000) throw new Error("ข้อมูลรายชื่อมีขนาดใหญ่เกินกำหนด");
-        if (!window.confirm(`ยืนยันนำเข้ารายชื่อ ${parsedRows.length} คนไปยัง${roomLabel(room)} หรือไม่? รายชื่อเดิมของห้องจะถูกแทนที่`)) {
+        const diff = currentRosterDiff;
+        const differenceSummary = diff
+          ? `รายชื่อเดิม ${diff.existingCount} คน · เพิ่ม ${diff.addedCount} · ลบ ${diff.removedCount} · เปลี่ยนชื่อ/เลขที่ ${diff.changedCount}`
+          : "";
+        uploadStatus.textContent = `ตรวจสอบแล้ว · ${differenceSummary} · ดาวน์โหลดสำรองรายชื่อเดิมได้ก่อนยืนยัน`;
+        if (!window.confirm(
+          `ยืนยันนำเข้ารายชื่อ ${parsedRows.length} คนไปยัง${roomLabel(room)} หรือไม่?\n${differenceSummary}\nรายชื่อเดิมของห้องจะถูกแทนที่ หากต้องการดาวน์โหลดสำรอง ให้ยกเลิกก่อน`
+        )) {
           uploadStatus.textContent = "ยกเลิกการอัปโหลดแล้ว";
           return;
         }
@@ -540,7 +653,8 @@
           }
         }
         activeUploadId = null;
-        uploadButton.disabled = false;
+        uploadControls.forEach((control, index) => { control.disabled = previouslyDisabled[index]; });
+        updateSheetNamePreview();
       }
     });
 

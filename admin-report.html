@@ -13,6 +13,7 @@
     * { box-sizing: border-box; }
     body { margin: 0; padding: 24px 20px; background: var(--page); color: var(--ink); font-family: 'Sarabun', sans-serif; font-size: 14px; }
     button, input, select { font: inherit; }
+    button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(52,125,175,.35); outline-offset: 2px; }
     .page { width: min(100%, 1020px); margin: 0 auto; }
     .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
     .eyebrow { color: var(--primary); font-size: 10px; font-weight: 700; letter-spacing: .06em; }
@@ -41,6 +42,13 @@
     tr.late-warning > td:nth-child(2), tr.late-critical > td:nth-child(2) { font-weight: 700; }
     tr.late-critical > td { background: #fde2e1; color: #9d201c; }
     .empty { padding: 18px 8px; color: var(--muted); text-align: center; }
+    @media print {
+      body { padding: 0; background: #fff; }
+      .header .actions, .controls, #exportReportButton { display: none !important; }
+      .card { padding: 0; border: 0; }
+      .table-wrap { overflow: visible; }
+      table { min-width: 0; }
+    }
     @media (max-width: 620px) {
       body { padding: 16px 14px 28px; font-size: 16px; }
       .page { width: 100%; }
@@ -95,6 +103,7 @@
           <input id="endDate" type="date">
         </label>
         <button class="button button-primary" id="loadReportButton" type="button" disabled>แสดงตาราง</button>
+        <button class="button" id="exportReportButton" type="button" disabled>ดาวน์โหลด CSV</button>
       </div>
       <p class="status" id="reportStatus" role="status" aria-live="polite"></p>
       <div class="table-wrap">
@@ -129,6 +138,7 @@
     const reportRows = document.getElementById("reportRows");
     let rooms = [];
     let requestGeneration = 0;
+    let currentReport = null;
 
     async function callAdmin(action, parameters = {}) {
       const response = await fetch(SCRIPT_URL, {
@@ -154,6 +164,8 @@
     }
 
     function clearReport(message) {
+      currentReport = null;
+      document.getElementById("exportReportButton").disabled = true;
       reportRows.replaceChildren();
       const row = document.createElement("tr");
       const cell = document.createElement("td");
@@ -165,8 +177,10 @@
     }
 
     function updateLoadButton() {
+      startDate.max = endDate.value || "";
+      endDate.min = startDate.value || "";
       document.getElementById("loadReportButton").disabled =
-        !reportRoom.value || !startDate.value || !endDate.value;
+        !reportRoom.value || !startDate.value || !endDate.value || startDate.value > endDate.value;
     }
 
     function updateRooms() {
@@ -185,7 +199,7 @@
       }
       reportRoom.disabled = !grade || availableRooms.length === 0;
       if (grade && !availableRooms.length) placeholder.textContent = "ไม่พบห้องในระดับชั้นนี้";
-      reportGeneration += 1;
+      requestGeneration += 1;
       document.getElementById("reportTitle").textContent = grade ? `รายงานการเข้าเรียน ม.${grade}` : "เลือกชั้นและห้องเรียน";
       reportStatus.textContent = "";
       clearReport("เลือกห้องและช่วงวันที่ แล้วกดแสดงตาราง");
@@ -255,8 +269,22 @@
           reportRows.append(row);
         }
         if (!data.students.length) clearReport("ไม่พบรายชื่อนักเรียนในห้องนี้");
+        currentReport = {
+          room: data.room,
+          startDate: data.startDate,
+          endDate: data.endDate,
+          students: data.students
+        };
+        document.getElementById("exportReportButton").disabled = data.students.length === 0;
         document.getElementById("reportTitle").textContent = `รายงานการเข้าเรียน ${roomLabel(data.room)}`;
-        reportStatus.textContent = `${data.startDate} ถึง ${data.endDate} · ${data.students.length} คน`;
+        const totals = data.students.reduce((sum, student) => {
+          for (const status of ["มา", "สาย", "ลา", "ขาด"]) {
+            sum[status] += Number(student.counts && student.counts[status]) || 0;
+          }
+          return sum;
+        }, { มา: 0, สาย: 0, ลา: 0, ขาด: 0 });
+        reportStatus.textContent =
+          `${data.startDate} ถึง ${data.endDate} · ${data.students.length} คน · มา ${totals["มา"]} / สาย ${totals["สาย"]} / ลา ${totals["ลา"]} / ขาด ${totals["ขาด"]}`;
       } catch (error) {
         if (generation !== requestGeneration) return;
         console.error("Unable to load attendance report:", error);
@@ -271,6 +299,32 @@
       return `ม.${room[0]} ห้อง ${Number(room.slice(1))}`;
     }
 
+    function exportReportCsv() {
+      if (!currentReport) return;
+      const csvCell = value => {
+        let text = String(value == null ? "" : value);
+        if (/^[\s]*[=+\-@]/.test(text)) text = `'${text}`;
+        return `"${text.replaceAll('"', '""')}"`;
+      };
+      const rows = [
+        ["เลขที่", "ชื่อ-นามสกุล", "รหัสนักเรียน", "มา/ตรงเวลา", "สาย", "ลา", "ขาด"],
+        ...currentReport.students.map(student => [
+          student.number || "", student.name || "", student.id || "",
+          ...["มา", "สาย", "ลา", "ขาด"].map(status => Number(student.counts && student.counts[status]) || 0)
+        ])
+      ];
+      const csv = `\uFEFF${rows.map(row => row.map(csvCell).join(",")).join("\r\n")}`;
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `รายงานเช็คชื่อ_${currentReport.room}_${currentReport.startDate}_${currentReport.endDate}.csv`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
     reportGrade.addEventListener("change", updateRooms);
     reportRoom.addEventListener("change", () => {
       requestGeneration += 1;
@@ -281,12 +335,15 @@
     for (const input of [startDate, endDate]) {
       input.addEventListener("change", () => {
         requestGeneration += 1;
-        reportStatus.textContent = "";
+        reportStatus.textContent = startDate.value && endDate.value && startDate.value > endDate.value
+          ? "วันที่เริ่มต้นต้องไม่อยู่หลังวันที่สิ้นสุด"
+          : "";
         clearReport("กดแสดงตารางเพื่อโหลดรายงานตามช่วงวันที่");
         updateLoadButton();
       });
     }
     document.getElementById("loadReportButton").addEventListener("click", loadReport);
+    document.getElementById("exportReportButton").addEventListener("click", exportReportCsv);
 
     const today = localDateValue();
     endDate.value = today;
